@@ -1,0 +1,38 @@
+# Capacidad: Alarmas Inteligentes, Desconexión y Diario
+
+## Purpose
+Esta capacidad proporciona alarmas inteligentes con integración musical, soporte para ejecutarse en suspensión profunda (Doze Mode) mediante servicios nativos en primer plano, y recordatorios adaptativos para preparar la desconexión pre-sueño.
+
+### Contexto de Persistencia
+El sistema gestionará las alarmas del usuario en la tabla `ALARMA`:
+
+| Campo | Tipo | Restricción | Descripción |
+| :--- | :--- | :--- | :--- |
+| `id` | TEXT | PRIMARY KEY (UUID) | Identificador único de la alarma |
+| `usuario_id` | TEXT | FOREIGN KEY -> `USUARIO.id` | Referencia al usuario propietario de la alarma |
+| `hora_despertar` | TEXT | NOT NULL | Hora programada para sonar (formato HH:MM) |
+| `frecuencia` | TEXT | NOT NULL | Días de repetición separados por comas (ej: `"1,2,3,4,5"` donde 1=Lunes, 7=Domingo) |
+| `activa` | INTEGER | NOT NULL | Indica si la alarma está activa (1 = Activa, 0 = Inactiva) |
+| `spotify_playlist` | TEXT | NULLABLE | URI o enlace de la playlist de Spotify seleccionada |
+| `creado_at` | TEXT | NOT NULL | Timestamp de creación en formato ISO 8601 UTC |
+
+## Requirements
+
+### Requirement: Alarma de alta confiabilidad y recordatorios preventivos
+El sistema SHALL ejecutar las alarmas configuradas superando el estado de suspensión profunda (Doze Mode) del sistema operativo y emitir avisos de desconexión nocturna.
+
+#### Scenario: Activación de la Alarma con Integración de Spotify
+- **GIVEN** una alarma activa programada a una hora específica (ej: 07:00 AM).
+- **AND** el dispositivo entra en reposo profundo (Doze Mode).
+- **WHEN** el reloj del sistema alcanza la hora fijada.
+- **THEN** el sistema DEBERÁ despertar el hilo de ejecución mediante un Foreground Service nativo en un tiempo de respuesta:
+  $$t_{\text{despertar}} < 500\text{ ms}$$
+- **AND** verificar si existe una URI o link válido en `spotify_playlist` para intentar jugar la música vía el SDK de Spotify.
+- **BUT WHEN** no hay conectividad a internet o falla la inicialización/reproducción del SDK de Spotify.
+- **THEN** el sistema DEBERÁ usar por seguridad el tono de alarma de respaldo almacenado de manera local en el almacenamiento interno del dispositivo.
+
+#### Scenario: Recordatorio automático de "Ventana de Desconexión"
+- **GIVEN** la `hora_limite_acostarse` configurada en la meta semanal activa (ej: 23:00).
+- **WHEN** el tiempo actual del sistema se sitúa exactamente 90 minutos antes de dicha hora:
+  $$t_{\text{alerta}} = t_{\text{límite\_acostarse}} - 90\text{ minutos}$$
+- **THEN** el sistema DEBERÁ disparar de manera automatizada una notificación push de baja luminancia sugiriendo al usuario iniciar el proceso de desconexión y activar el filtro de luz azul del dispositivo.
