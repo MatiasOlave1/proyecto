@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.camposocampoolavevargas.proyecto.UserManager
 
 @Composable
 fun LoginScreen(
@@ -58,12 +59,16 @@ fun LoginScreen(
                 onClick = {
 
                     if (
-                        correo == "admin@ucsc.cl" &&
-                        password == "1234"
+                        correo == UserManager.correoRegistrado &&
+                        password == UserManager.passwordRegistrada
                     ) {
+
                         mensaje = "Login correcto"
+
                     } else {
+
                         mensaje = "Correo o contraseña incorrectos"
+
                     }
 
                 },
