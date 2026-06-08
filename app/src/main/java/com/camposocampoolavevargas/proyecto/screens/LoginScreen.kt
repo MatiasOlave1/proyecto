@@ -58,7 +58,7 @@ fun LoginScreen(
                 onClick = {
 
                     if (
-                        correo == "admin@duoc.cl" &&
+                        correo == "admin@ucsc.cl" &&
                         password == "1234"
                     ) {
                         mensaje = "Login correcto"
