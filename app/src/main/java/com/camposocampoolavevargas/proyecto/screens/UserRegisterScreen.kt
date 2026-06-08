@@ -9,6 +9,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.camposocampoolavevargas.proyecto.UserManager
 
 @Composable
 fun UserRegisterScreen(
@@ -128,7 +129,9 @@ fun UserRegisterScreen(
 
                     mensaje = "Usuario registrado correctamente"
                     colorMensaje = Color.Blue
+                    UserManager.correoRegistrado = correo
 
+                    UserManager.passwordRegistrada = password
                     scope.launch {
 
                         delay(2000)
