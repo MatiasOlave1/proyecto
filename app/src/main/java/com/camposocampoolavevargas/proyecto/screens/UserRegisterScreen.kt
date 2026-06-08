@@ -4,9 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun UserRegisterScreen(
@@ -22,8 +24,11 @@ fun UserRegisterScreen(
     var correo by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmarPassword by remember { mutableStateOf("") }
+
     var mensaje by remember { mutableStateOf("") }
     var colorMensaje by remember { mutableStateOf(Color.Black) }
+
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -73,6 +78,7 @@ fun UserRegisterScreen(
             onValueChange = { carrera = it },
             label = { Text("Carrera") }
         )
+
         OutlinedTextField(
             value = correo,
             onValueChange = { correo = it },
@@ -85,6 +91,7 @@ fun UserRegisterScreen(
             label = { Text("Contraseña") },
             visualTransformation = PasswordVisualTransformation()
         )
+
         OutlinedTextField(
             value = confirmarPassword,
             onValueChange = { confirmarPassword = it },
@@ -96,7 +103,6 @@ fun UserRegisterScreen(
 
         Button(
             onClick = {
-
 
                 if (
                     nombre.isBlank() ||
@@ -112,9 +118,8 @@ fun UserRegisterScreen(
 
                     mensaje = "Debe completar todos los campos"
                     colorMensaje = Color.Red
-                }
 
-                else if (password != confirmarPassword) {
+                } else if (password != confirmarPassword) {
 
                     mensaje = "Las contraseñas no coinciden"
                     colorMensaje = Color.Red
@@ -123,12 +128,20 @@ fun UserRegisterScreen(
 
                     mensaje = "Usuario registrado correctamente"
                     colorMensaje = Color.Blue
-                }
 
+                    scope.launch {
+
+                        delay(2000)
+
+                        onBackToLogin()
+
+                    }
+                }
             }
         ) {
             Text("Guardar Usuario")
         }
+
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
