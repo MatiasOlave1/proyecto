@@ -3,45 +3,28 @@ package com.camposocampoolavevargas.proyecto
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.camposocampoolavevargas.proyecto.ui.theme.ProyectoTheme
+import androidx.appcompat.app.AppCompatDelegate
+import com.camposocampoolavevargas.proyecto.navigation.AppNavigation
+import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+/**
+ * Main Activity of the DormiBienU application.
+ * Configured with Dagger Hilt injection and forces night mode globally.
+ */
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+
+        // Enforce dark mode always
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+
         setContent {
-            ProyectoTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "DormiBienU",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+            DormiBienUTheme {
+                AppNavigation()
             }
         }
     }
 }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    ProyectoTheme {
-        Greeting("Android")
-    }
-}
