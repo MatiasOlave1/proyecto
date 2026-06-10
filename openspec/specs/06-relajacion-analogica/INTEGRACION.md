@@ -8,6 +8,7 @@ Agregar el siguiente servicio:
 ```xml
 <service
     android:name=".relajacion.service.AudioPlayerService"
+    android:foregroundServiceType="mediaPlayback"
     android:enabled="true"
     android:exported="false" />
 ```
@@ -26,7 +27,7 @@ Las dependencias necesarias (ya incluidas en el proyecto base):
 - androidx.room:room-runtime (para DB)
 
 ### 3. Assets de Audio
-1. Crear carpeta: `app/src/main/assets/audios/`
+1. Crear carpeta: `app/src/main/assets/audio/`
 2. Colocar archivos:
    - `ruido_blanco.mp3` (max 5MB, seamless loop)
    - `ruido_marron.mp3` (max 5MB, seamless loop)
@@ -172,7 +173,7 @@ repository.obtenerSesionesPorUsuario(userId).collect { sesiones ->
 ## Solución de Problemas
 
 ### Audio no reproduce
-- Verificar que archivos están en `assets/audios/`
+- Verificar que archivos están en `assets/audio/`
 - Verificar que archivos son MP3 válidos
 - Revisar permisos de audio
 

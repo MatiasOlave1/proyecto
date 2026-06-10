@@ -93,7 +93,7 @@ fun AudioPlayerControls(
             value = volume,
             onValueChange = onVolumeChange,
             valueRange = 0f..1f,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth
         )
         
         Text(

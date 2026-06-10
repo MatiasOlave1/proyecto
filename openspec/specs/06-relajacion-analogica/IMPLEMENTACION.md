@@ -53,6 +53,7 @@ Se han implementado todas las funciones especificadas en SPEC-06 para el módulo
   - Ducking en interrupciones
   - Notificación persistente
   - Compatible con Doze Mode
+  - `foregroundServiceType="mediaPlayback"` requerido en Manifest (Android 14+)
 
 - `service/RelajacionNotificationManager.kt` - Gestor de notificaciones
   - Canales para sesiones y audio
@@ -149,7 +150,7 @@ Para integrar con la app principal:
 
 1. **Actualizar AndroidManifest.xml** - Registrar `AudioPlayerService`
 2. **Crear layout XML** - `res/layout/fragment_relajacion.xml`
-3. **Empaquetar assets** - Agregar audios a `assets/audios/`
+3. **Empaquetar assets** - Agregar audios a `assets/audio/`
 4. **Integración DB** - Agregar DAO a AppDatabase
 5. **Inyección de dependencias** - Configurar repositorio y ViewModels
 6. **Integración con CAP-04** - Listener para evento de logros
