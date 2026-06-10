@@ -4,16 +4,18 @@ import androidx.lifecycle.viewModelScope
 import com.camposocampoolavevargas.proyecto.data.local.HashUtils
 import com.camposocampoolavevargas.proyecto.data.local.UserSession
 import com.camposocampoolavevargas.proyecto.data.local.dao.UserDao
+import com.camposocampoolavevargas.proyecto.data.local.entity.UserEntity
 import com.camposocampoolavevargas.proyecto.ui.BaseViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 /**
- * ViewModel for user login (RF01).
- * Verifies email/password matches, manages session persistence, and auto-logs-in existing users.
+ * ViewModel for user login (RF01 - simplified).
+ * Verifies email/phone and password credentials, and handles Google login redirects.
  */
 @HiltViewModel
 class LoginViewModel @Inject constructor(
@@ -36,37 +38,69 @@ class LoginViewModel @Inject constructor(
     }
 
     /**
-     * Attempts to log in with the provided email and password.
+     * Attempts to log in with the provided identifier (email or phone) and password.
      */
-    fun login(email: String, password: String) {
+    fun login(emailOrPhone: String, password: String) {
         viewModelScope.launch {
             _loginState.value = UiState.Loading
 
             // 1. Validation
-            if (email.isBlank() || password.isBlank()) {
-                _loginState.value = UiState.Error("El correo y la contraseña son obligatorios.")
+            if (emailOrPhone.isBlank() || password.isBlank()) {
+                _loginState.value = UiState.Error("El correo/teléfono y la contraseña son obligatorios.")
                 return@launch
             }
 
             try {
-                // 2. Fetch user
-                val user = userDao.getUserByEmail(email.trim().lowercase())
+                // 2. Fetch user by email or phone
+                val identifier = emailOrPhone.trim().lowercase()
+                val user = userDao.getUserByEmailOrPhone(identifier)
                 if (user == null) {
                     _loginState.value = UiState.Error("Credenciales inválidas. Usuario no encontrado.")
                     return@launch
                 }
 
-                // 3. Hash input password and compare
+                // 3. Verify password
                 val inputHash = HashUtils.hashPassword(password)
                 if (user.passwordHash == inputHash) {
                     // 4. Save session
                     userSession.login(user.userId)
                     _loginState.value = UiState.Success(user.userId)
+                } else if (user.passwordHash == "GOOGLE_AUTH_ACCOUNT") {
+                    _loginState.value = UiState.Error("Esta cuenta se registró con Google. Por favor, usa Iniciar Sesión con Google.")
                 } else {
                     _loginState.value = UiState.Error("Credenciales inválidas. Contraseña incorrecta.")
                 }
             } catch (e: Exception) {
                 _loginState.value = UiState.Error(e.localizedMessage ?: "Ocurrió un error inesperado al iniciar sesión.")
+            }
+        }
+    }
+
+    /**
+     * Logs in or creates a user account when authenticating through Google on the login screen.
+     */
+    fun loginWithGoogle(email: String, name: String) {
+        viewModelScope.launch {
+            _loginState.value = UiState.Loading
+            try {
+                val cleanEmail = email.trim().lowercase()
+                var user = userDao.getUserByEmailOrPhone(cleanEmail)
+                
+                if (user == null) {
+                    val userId = UUID.randomUUID().toString()
+                    user = UserEntity(
+                        userId = userId,
+                        email = cleanEmail,
+                        passwordHash = "GOOGLE_AUTH_ACCOUNT",
+                        name = name.trim()
+                    )
+                    userDao.insertUser(user)
+                }
+                
+                userSession.login(user.userId)
+                _loginState.value = UiState.Success(user.userId)
+            } catch (e: Exception) {
+                _loginState.value = UiState.Error(e.localizedMessage ?: "Ocurrió un error al iniciar sesión con Google.")
             }
         }
     }

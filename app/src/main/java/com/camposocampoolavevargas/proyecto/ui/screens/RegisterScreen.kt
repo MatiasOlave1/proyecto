@@ -1,15 +1,20 @@
 package com.camposocampoolavevargas.proyecto.ui.screens
 
 import android.content.res.Configuration.UI_MODE_NIGHT_YES
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -18,8 +23,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -36,6 +44,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -48,12 +59,12 @@ import androidx.navigation.compose.rememberNavController
 import com.camposocampoolavevargas.proyecto.navigation.Screen
 import com.camposocampoolavevargas.proyecto.ui.BaseViewModel.UiState
 import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
-import java.text.SimpleDateFormat
-import java.util.Locale
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 
 /**
- * Screen for Registration (RF01 — Registro).
- * Hooks into RegisterViewModel, validates form fields, and saves to database.
+ * Screen for Registration (RF01 — Registro simplificado con soporte de Google).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,17 +73,40 @@ fun RegisterScreen(
     viewModel: RegisterViewModel = hiltViewModel()
 ) {
     val registerState by viewModel.registerState.collectAsState()
+    val context = LocalContext.current
 
-    var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var birthDateText by remember { mutableStateOf("") } // YYYY-MM-DD
-    var region by remember { mutableStateOf("") }
-    var commune by remember { mutableStateOf("") }
-    var university by remember { mutableStateOf("") }
-    var career by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
     
     var localError by remember { mutableStateOf<String?>(null) }
+
+    // Google Sign-In setup
+    val gso = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+            .requestProfile()
+            .build()
+    }
+    val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
+
+    val googleLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val googleEmail = account?.email
+            val googleName = account?.displayName ?: "Usuario Google"
+            if (googleEmail != null) {
+                viewModel.registerOrLoginWithGoogle(googleEmail, googleName)
+            } else {
+                localError = "No se pudo obtener el correo de Google."
+            }
+        } catch (e: ApiException) {
+            localError = "Error de Google (${e.statusCode}): Verifica el archivo google-services.json."
+        }
+    }
 
     // Redirect to Home when registration is successful
     LaunchedEffect(registerState) {
@@ -90,7 +124,7 @@ fun RegisterScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(text = "Registro Universitario", fontWeight = FontWeight.Bold) },
+                    title = { Text(text = "DormiBienU", fontWeight = FontWeight.Bold) },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background
                     )
@@ -102,7 +136,7 @@ fun RegisterScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
                     .background(MaterialTheme.colorScheme.background),
-                contentAlignment = Alignment.TopCenter
+                contentAlignment = Alignment.Center
             ) {
                 Column(
                     modifier = Modifier
@@ -110,23 +144,23 @@ fun RegisterScreen(
                         .padding(horizontal = 24.dp)
                         .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Top
+                    verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "Crea tu Cuenta",
+                        text = "Crear Cuenta",
                         style = MaterialTheme.typography.headlineLarge.copy(
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 30.sp
+                            fontSize = 32.sp
                         ),
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(vertical = 12.dp)
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
                     
                     Text(
-                        text = "Registra tus datos locales para gestionar tu higiene de sueño de forma 100% offline.",
+                        text = "Regístrate rápidamente y gestiona tus hábitos de sueño de forma local y offline.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 16.dp),
+                        modifier = Modifier.padding(bottom = 24.dp),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
 
@@ -139,23 +173,25 @@ fun RegisterScreen(
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            OutlinedTextField(
-                                value = name,
-                                onValueChange = { name = it; localError = null },
-                                label = { Text("Nombre Completo") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
                             OutlinedTextField(
                                 value = email,
                                 onValueChange = { email = it; localError = null },
-                                label = { Text("Correo Institucional / Personal") },
+                                label = { Text("Correo electrónico") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                            )
+
+                            OutlinedTextField(
+                                value = phone,
+                                onValueChange = { phone = it; localError = null },
+                                label = { Text("Teléfono móvil (Opcional)") },
+                                placeholder = { Text("Ej: +56912345678") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                             )
 
                             OutlinedTextField(
@@ -167,51 +203,10 @@ fun RegisterScreen(
                                 visualTransformation = PasswordVisualTransformation(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                             )
-
-                            OutlinedTextField(
-                                value = birthDateText,
-                                onValueChange = { birthDateText = it; localError = null },
-                                label = { Text("Fecha de Nacimiento (AAAA-MM-DD)") },
-                                placeholder = { Text("Ej: 2002-05-15") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
-                            OutlinedTextField(
-                                value = region,
-                                onValueChange = { region = it; localError = null },
-                                label = { Text("Región") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
-                            OutlinedTextField(
-                                value = commune,
-                                onValueChange = { commune = it; localError = null },
-                                label = { Text("Comuna") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
-                            OutlinedTextField(
-                                value = university,
-                                onValueChange = { university = it; localError = null },
-                                label = { Text("Universidad") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
-                            OutlinedTextField(
-                                value = career,
-                                onValueChange = { career = it; localError = null },
-                                label = { Text("Carrera") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     // Show error messages
                     val currentError = localError ?: (registerState as? UiState.Error)?.message
@@ -220,7 +215,7 @@ fun RegisterScreen(
                             text = currentError,
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                            modifier = Modifier.padding(bottom = 8.dp),
+                            modifier = Modifier.padding(bottom = 12.dp),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
@@ -230,43 +225,68 @@ fun RegisterScreen(
                     } else {
                         Button(
                             onClick = {
-                                // Simple local date parsing validation
-                                val birthDateMillis = try {
-                                    val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                                    format.parse(birthDateText.trim())?.time ?: 0L
-                                } catch (e: Exception) {
-                                    -1L
-                                }
-
-                                if (birthDateMillis == -1L) {
-                                    localError = "El formato de fecha debe ser AAAA-MM-DD (ej: 2001-12-30)."
-                                } else {
-                                    viewModel.register(
-                                        name = name,
-                                        birthDate = birthDateMillis,
-                                        region = region,
-                                        commune = commune,
-                                        university = university,
-                                        career = career,
-                                        email = email,
-                                        password = password
-                                    )
-                                }
+                                viewModel.register(email, password, phone)
                             },
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Text(text = "Registrar cuenta", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Registrarse", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Divider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+                            Text(
+                                text = "O",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                            Divider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                googleSignInClient.signOut().addOnCompleteListener {
+                                    val signInIntent = googleSignInClient.signInIntent
+                                    googleLauncher.launch(signInIntent)
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "G",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 18.sp,
+                                    color = Color(0xFF4285F4)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(text = "Registrarse con Google", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     TextButton(
-                        onClick = { navController.popBackStack() },
-                        modifier = Modifier.padding(bottom = 24.dp)
+                        onClick = { navController.popBackStack() }
                     ) {
-                        Text(text = "¿Ya tienes cuenta? Iniciar Sesión", color = MaterialTheme.colorScheme.secondary)
+                        Text(text = "¿Ya tienes una cuenta? Inicia sesión aquí", color = MaterialTheme.colorScheme.secondary)
                     }
                 }
             }

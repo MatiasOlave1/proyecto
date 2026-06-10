@@ -34,7 +34,7 @@ import com.camposocampoolavevargas.proyecto.data.local.entity.WeeklyGoalEntity
         JournalEntryEntity::class,
         CircadianAlertEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

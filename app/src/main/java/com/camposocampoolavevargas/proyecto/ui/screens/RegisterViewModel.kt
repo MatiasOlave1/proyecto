@@ -15,8 +15,8 @@ import java.util.regex.Pattern
 import javax.inject.Inject
 
 /**
- * ViewModel for user registration (RF01).
- * Validates inputs, hashes passwords, checks for duplicates, and seeds the DB.
+ * ViewModel for user registration (RF01 - simplified).
+ * Requires only email, password and optionally phone. Supports Google account persistence.
  */
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
@@ -27,30 +27,22 @@ class RegisterViewModel @Inject constructor(
     private val _registerState = MutableStateFlow<UiState<String>>(UiState.Success(""))
     val registerState: StateFlow<UiState<String>> = _registerState
 
-    // Standard RFC 5322 email regex pattern
     private val emailPattern = Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\$")
 
     /**
-     * Attempts to register a new user in the database.
+     * Registers a new user locally using email, password, and optionally phone.
      */
     fun register(
-        name: String,
-        birthDate: Long,
-        region: String,
-        commune: String,
-        university: String,
-        career: String,
         email: String,
-        password: String
+        password: String,
+        phone: String? = null
     ) {
         viewModelScope.launch {
             _registerState.value = UiState.Loading
 
-            // 1. Check for empty fields
-            if (name.isBlank() || region.isBlank() || commune.isBlank() ||
-                university.isBlank() || career.isBlank() || email.isBlank() || password.isBlank()
-            ) {
-                _registerState.value = UiState.Error("Todos los campos obligatorios deben ser completados.")
+            // 1. Validate mandatory fields
+            if (email.isBlank() || password.isBlank()) {
+                _registerState.value = UiState.Error("El correo y la contraseña son obligatorios.")
                 return@launch
             }
 
@@ -61,36 +53,73 @@ class RegisterViewModel @Inject constructor(
             }
 
             try {
-                // 3. Verify email uniqueness
-                val existingUser = userDao.getUserByEmail(email.trim().lowercase())
+                val cleanEmail = email.trim().lowercase()
+                val cleanPhone = phone?.trim()?.takeIf { it.isNotEmpty() }
+
+                // 3. Verify user uniqueness
+                val existingUser = userDao.getUserByEmailOrPhone(cleanEmail)
                 if (existingUser != null) {
                     _registerState.value = UiState.Error("Este correo electrónico ya está registrado.")
                     return@launch
                 }
 
-                // 4. Hash password and save new UserEntity
+                if (cleanPhone != null) {
+                    val existingPhone = userDao.getUserByEmailOrPhone(cleanPhone)
+                    if (existingPhone != null) {
+                        _registerState.value = UiState.Error("Este número de teléfono ya está registrado.")
+                        return@launch
+                    }
+                }
+
+                // 4. Hash password and insert
                 val passwordHash = HashUtils.hashPassword(password)
                 val userId = UUID.randomUUID().toString()
                 val newUser = UserEntity(
                     userId = userId,
-                    name = name.trim(),
-                    birthDate = birthDate,
-                    region = region.trim(),
-                    commune = commune.trim(),
-                    university = university.trim(),
-                    career = career.trim(),
-                    email = email.trim().lowercase(),
-                    passwordHash = passwordHash
+                    email = cleanEmail,
+                    passwordHash = passwordHash,
+                    phone = cleanPhone
                 )
 
                 userDao.insertUser(newUser)
                 
-                // 5. Automatically log in the user
+                // 5. Save session
                 userSession.login(userId)
                 
                 _registerState.value = UiState.Success(userId)
             } catch (e: Exception) {
-                _registerState.value = UiState.Error(e.localizedMessage ?: "Ocurrió un error inesperado al registrar el usuario.")
+                _registerState.value = UiState.Error(e.localizedMessage ?: "Ocurrió un error inesperado al registrarse.")
+            }
+        }
+    }
+
+    /**
+     * Handles Google login/register success.
+     * Persists the Google account details locally if they don't already exist.
+     */
+    fun registerOrLoginWithGoogle(email: String, name: String) {
+        viewModelScope.launch {
+            _registerState.value = UiState.Loading
+            try {
+                val cleanEmail = email.trim().lowercase()
+                var user = userDao.getUserByEmailOrPhone(cleanEmail)
+                
+                if (user == null) {
+                    // Create new local representation for Google user
+                    val userId = UUID.randomUUID().toString()
+                    user = UserEntity(
+                        userId = userId,
+                        email = cleanEmail,
+                        passwordHash = "GOOGLE_AUTH_ACCOUNT", // Special tag for non-password users
+                        name = name.trim()
+                    )
+                    userDao.insertUser(user)
+                }
+                
+                userSession.login(user.userId)
+                _registerState.value = UiState.Success(user.userId)
+            } catch (e: Exception) {
+                _registerState.value = UiState.Error(e.localizedMessage ?: "Ocurrió un error al iniciar sesión con Google.")
             }
         }
     }
