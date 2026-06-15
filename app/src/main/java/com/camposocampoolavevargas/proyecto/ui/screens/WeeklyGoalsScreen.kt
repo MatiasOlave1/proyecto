@@ -255,19 +255,24 @@ fun WeeklyGoalsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
                             )
-                            if (goal != null) {
-                                val goalBedtime = String.format(Locale.getDefault(), "%02d:%02d", bedtimeHour, bedtimeMinute)
+                            val activeGoal = goal
+                            if (activeGoal != null) {
+                                val persistedMinHours = activeGoal.minHours
+                                val persistedRequiredDays = activeGoal.requiredDays
+                                val persistedBedtimeHour = (activeGoal.bedtimeLimitMillis / (1000 * 60 * 60)).toInt()
+                                val persistedBedtimeMinute = ((activeGoal.bedtimeLimitMillis % (1000 * 60 * 60)) / (1000 * 60)).toInt()
+                                val goalBedtime = String.format(Locale.getDefault(), "%02d:%02d", persistedBedtimeHour, persistedBedtimeMinute)
                                 Row(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column {
                                         Text("Dormir Mínimo", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text("${String.format(Locale.getDefault(), "%.1f", minHours)} horas", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                        Text("${String.format(Locale.getDefault(), "%.1f", persistedMinHours)} horas", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                     }
                                     Column {
                                         Text("Días Requeridos", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text("$requiredDays días", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                        Text("$persistedRequiredDays días", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                     }
                                     Column {
                                         Text("Hora Límite", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

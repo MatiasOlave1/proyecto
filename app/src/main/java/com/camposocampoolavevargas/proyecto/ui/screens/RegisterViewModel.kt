@@ -57,14 +57,14 @@ class RegisterViewModel @Inject constructor(
                 val cleanPhone = phone?.trim()?.takeIf { it.isNotEmpty() }
 
                 // 3. Verify user uniqueness
-                val existingUser = userDao.getUserByEmailOrPhone(cleanEmail)
+                val existingUser = userDao.getUserByEmail(cleanEmail)
                 if (existingUser != null) {
                     _registerState.value = UiState.Error("Este correo electrónico ya está registrado.")
                     return@launch
                 }
 
                 if (cleanPhone != null) {
-                    val existingPhone = userDao.getUserByEmailOrPhone(cleanPhone)
+                    val existingPhone = userDao.getUserByPhone(cleanPhone)
                     if (existingPhone != null) {
                         _registerState.value = UiState.Error("Este número de teléfono ya está registrado.")
                         return@launch
@@ -87,6 +87,15 @@ class RegisterViewModel @Inject constructor(
                 userSession.login(userId)
                 
                 _registerState.value = UiState.Success(userId)
+            } catch (e: android.database.sqlite.SQLiteConstraintException) {
+                val msg = e.message ?: ""
+                if (msg.contains("email")) {
+                    _registerState.value = UiState.Error("Este correo electrónico ya está registrado.")
+                } else if (msg.contains("phone")) {
+                    _registerState.value = UiState.Error("Este número de teléfono ya está registrado.")
+                } else {
+                    _registerState.value = UiState.Error("Este correo o teléfono ya están registrados.")
+                }
             } catch (e: Exception) {
                 _registerState.value = UiState.Error(e.localizedMessage ?: "Ocurrió un error inesperado al registrarse.")
             }
@@ -102,7 +111,7 @@ class RegisterViewModel @Inject constructor(
             _registerState.value = UiState.Loading
             try {
                 val cleanEmail = email.trim().lowercase()
-                var user = userDao.getUserByEmailOrPhone(cleanEmail)
+                var user = userDao.getUserByEmail(cleanEmail)
                 
                 if (user == null) {
                     // Create new local representation for Google user

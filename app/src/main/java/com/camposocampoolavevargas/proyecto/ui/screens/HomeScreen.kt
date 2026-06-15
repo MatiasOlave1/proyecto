@@ -56,11 +56,22 @@ enum class HomeTab {
  * Manages the bottom navigation bar of 4 tabs (Dashboard, Noche, Historial, Logros)
  * and dynamically swaps their screen contents.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     navController: NavController,
     viewModel: HomeViewModel = hiltViewModel()
+) {
+    HomeScreenContent(
+        navController = navController,
+        onLogout = { viewModel.logout() }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreenContent(
+    navController: NavController,
+    onLogout: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(HomeTab.Dashboard) }
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -156,7 +167,7 @@ fun HomeScreen(
                 confirmButton = {
                     TextButton(onClick = {
                         showLogoutDialog = false
-                        viewModel.logout()
+                        onLogout()
                         navController.navigate(Screen.Login.route) {
                             popUpTo(0) { inclusive = true }
                         }
@@ -208,6 +219,6 @@ fun MoonIcon(color: Color, modifier: Modifier = Modifier) {
 @Composable
 fun HomeScreenPreview() {
     DormiBienUTheme {
-        HomeScreen(navController = rememberNavController())
+        HomeScreenContent(navController = rememberNavController(), onLogout = {})
     }
 }

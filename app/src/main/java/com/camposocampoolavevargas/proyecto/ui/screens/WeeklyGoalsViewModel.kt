@@ -13,6 +13,7 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
+import com.camposocampoolavevargas.proyecto.util.DateUtils
 
 /**
  * ViewModel for setting and loading Weekly Sleep Goals (RF04).
@@ -40,10 +41,7 @@ class WeeklyGoalsViewModel @Inject constructor(
     private fun loadCurrentGoal() {
         val userId = userSession.getActiveUserId() ?: return
         
-        val calendar = Calendar.getInstance(Locale.getDefault())
-        calendar.firstDayOfWeek = Calendar.MONDAY
-        val isoWeek = calendar.get(Calendar.WEEK_OF_YEAR)
-        val isoYear = calendar.get(Calendar.YEAR)
+        val (isoWeek, isoYear) = DateUtils.getIsoWeekYear()
 
         viewModelScope.launch {
             weeklyGoalDao.getCurrentGoal(userId, isoWeek, isoYear).collect { goal ->
@@ -56,10 +54,7 @@ class WeeklyGoalsViewModel @Inject constructor(
      * Gets current week description for UI.
      */
     fun getCurrentWeekInfo(): String {
-        val calendar = Calendar.getInstance(Locale.getDefault())
-        calendar.firstDayOfWeek = Calendar.MONDAY
-        val week = calendar.get(Calendar.WEEK_OF_YEAR)
-        val year = calendar.get(Calendar.YEAR)
+        val (week, year) = DateUtils.getIsoWeekYear()
         return "Semana $week, $year"
     }
 
@@ -76,10 +71,7 @@ class WeeklyGoalsViewModel @Inject constructor(
         viewModelScope.launch {
             _saveState.value = UiState.Loading
             try {
-                val calendar = Calendar.getInstance(Locale.getDefault())
-                calendar.firstDayOfWeek = Calendar.MONDAY
-                val isoWeek = calendar.get(Calendar.WEEK_OF_YEAR)
-                val isoYear = calendar.get(Calendar.YEAR)
+                val (isoWeek, isoYear) = DateUtils.getIsoWeekYear()
 
                 // Convert bedtime (Hour/Minute) to milliseconds from midnight
                 val bedtimeLimitMillis = (bedtimeHour * 60 * 60 * 1000L) + (bedtimeMinute * 60 * 1000L)

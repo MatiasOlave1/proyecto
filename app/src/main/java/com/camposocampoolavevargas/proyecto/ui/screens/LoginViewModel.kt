@@ -84,7 +84,7 @@ class LoginViewModel @Inject constructor(
             _loginState.value = UiState.Loading
             try {
                 val cleanEmail = email.trim().lowercase()
-                var user = userDao.getUserByEmailOrPhone(cleanEmail)
+                var user = userDao.getUserByEmail(cleanEmail)
                 
                 if (user == null) {
                     val userId = UUID.randomUUID().toString()

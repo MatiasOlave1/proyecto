@@ -9,9 +9,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.util.Calendar
-import java.util.Locale
 import javax.inject.Inject
+import com.camposocampoolavevargas.proyecto.util.DateUtils
 
 /**
  * ViewModel for the Dashboard Screen.
@@ -36,10 +35,7 @@ class DashboardViewModel @Inject constructor(
     fun loadCurrentGoal() {
         val userId = userSession.getActiveUserId() ?: return
         
-        val calendar = Calendar.getInstance(Locale.getDefault())
-        calendar.firstDayOfWeek = Calendar.MONDAY
-        val isoWeek = calendar.get(Calendar.WEEK_OF_YEAR)
-        val isoYear = calendar.get(Calendar.YEAR)
+        val (isoWeek, isoYear) = DateUtils.getIsoWeekYear()
 
         viewModelScope.launch {
             weeklyGoalDao.getCurrentGoal(userId, isoWeek, isoYear).collect { goal ->
