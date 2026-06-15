@@ -30,10 +30,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.camposocampoolavevargas.proyecto.navigation.Screen
 import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
 
 /**
@@ -51,10 +56,25 @@ enum class HomeTab {
  * Manages the bottom navigation bar of 4 tabs (Dashboard, Noche, Historial, Logros)
  * and dynamically swaps their screen contents.
  */
+@Composable
+fun HomeScreen(
+    navController: NavController,
+    viewModel: HomeViewModel = hiltViewModel()
+) {
+    HomeScreenContent(
+        navController = navController,
+        onLogout = { viewModel.logout() }
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreenContent(
+    navController: NavController,
+    onLogout: () -> Unit
+) {
     var selectedTab by remember { mutableStateOf(HomeTab.Dashboard) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -75,7 +95,7 @@ fun HomeScreen(navController: NavController) {
                         )
                     },
                     actions = {
-                        IconButton(onClick = { /* Profile settings action */ }) {
+                        IconButton(onClick = { showLogoutDialog = true }) {
                             Icon(
                                 imageVector = Icons.Default.AccountCircle,
                                 contentDescription = "Perfil",
@@ -138,6 +158,30 @@ fun HomeScreen(navController: NavController) {
                 }
             }
         }
+
+        if (showLogoutDialog) {
+            AlertDialog(
+                onDismissRequest = { showLogoutDialog = false },
+                title = { Text("Cerrar Sesión", fontWeight = FontWeight.Bold) },
+                text = { Text("¿Estás seguro de que deseas cerrar tu sesión actual?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showLogoutDialog = false
+                        onLogout()
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }) {
+                        Text("Cerrar Sesión", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLogoutDialog = false }) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -175,6 +219,6 @@ fun MoonIcon(color: Color, modifier: Modifier = Modifier) {
 @Composable
 fun HomeScreenPreview() {
     DormiBienUTheme {
-        HomeScreen(navController = rememberNavController())
+        HomeScreenContent(navController = rememberNavController(), onLogout = {})
     }
 }
