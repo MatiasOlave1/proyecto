@@ -34,6 +34,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import java.util.Locale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,8 +59,17 @@ import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
  * Main scrollable content for the Dashboard tab.
  */
 @Composable
-fun DashboardTabContent(navController: NavController) {
+fun DashboardTabContent(
+    navController: NavController,
+    viewModel: DashboardViewModel = hiltViewModel()
+) {
     val scrollState = rememberScrollState()
+    val currentGoal by viewModel.currentGoal.collectAsState()
+
+    // Reload active goal every time this screen becomes active/visible
+    LaunchedEffect(Unit) {
+        viewModel.loadCurrentGoal()
+    }
 
     Column(
         modifier = Modifier
@@ -227,25 +241,66 @@ fun DashboardTabContent(navController: NavController) {
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
+                containerColor = if (currentGoal != null) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                }
+            ),
+            border = if (currentGoal != null) {
+                androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF78166).copy(alpha = 0.4f))
+            } else null
         ) {
             Column(
                 modifier = Modifier.padding(18.dp)
             ) {
                 Text(
-                    text = "Metas Semanales de Sueño",
+                    text = if (currentGoal != null) "Meta de Sueño Activa" else "Metas Semanales de Sueño",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = if (currentGoal != null) Color(0xFFF78166) else MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Configura tus objetivos de sueño (horas mínimas, días consecutivos y hora límite) para activar la gamificación.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                
+                if (currentGoal != null) {
+                    val goalVal = currentGoal!!
+                    val bedtimeHour = (goalVal.bedtimeLimitMillis / (1000 * 60 * 60)).toInt()
+                    val bedtimeMinute = ((goalVal.bedtimeLimitMillis % (1000 * 60 * 60)) / (1000 * 60)).toInt()
+                    val bedtimeLabel = String.format(Locale.getDefault(), "%02d:%02d", bedtimeHour, bedtimeMinute)
+                    
+                    Text(
+                        text = "Objetivo semanal configurado para mejorar tu ritmo circadiano:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            Text("Dormir Mínimo", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${String.format(Locale.getDefault(), "%.1f", goalVal.minHours)} horas", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                        Column {
+                            Text("Días Requeridos", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${goalVal.requiredDays} días", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                        Column {
+                            Text("Hora Límite", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(bedtimeLabel, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "Configura tus objetivos de sueño (horas mínimas, días consecutivos y hora límite) para activar la gamificación.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
                 Spacer(modifier = Modifier.height(16.dp))
+                
                 Button(
                     onClick = { navController.navigate(Screen.WeeklyGoals.route) },
                     modifier = Modifier.fillMaxWidth(),
@@ -260,7 +315,7 @@ fun DashboardTabContent(navController: NavController) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Configurar Metas de la Semana",
+                            text = if (currentGoal != null) "Editar Meta de la Semana" else "Configurar Metas de la Semana",
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )

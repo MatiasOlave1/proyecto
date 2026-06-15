@@ -1,6 +1,7 @@
 package com.camposocampoolavevargas.proyecto.ui.screens
 
 import android.content.res.Configuration.UI_MODE_NIGHT_YES
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -51,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -74,6 +77,7 @@ fun WeeklyGoalsScreen(
 ) {
     val goal by viewModel.goalState.collectAsState()
     val saveState by viewModel.saveState.collectAsState()
+    val context = LocalContext.current
 
     var minHours by remember { mutableStateOf(8.0f) }
     var requiredDays by remember { mutableStateOf(5) }
@@ -81,6 +85,7 @@ fun WeeklyGoalsScreen(
     var bedtimeMinute by remember { mutableStateOf(0) }
     
     var showTimePicker by remember { mutableStateOf(false) }
+    var showOverwriteDialog by remember { mutableStateOf(false) }
 
     // Initialize values when the active goal is loaded from database
     LaunchedEffect(goal) {
@@ -94,11 +99,12 @@ fun WeeklyGoalsScreen(
         }
     }
 
-    // Clear save message automatically after 3 seconds
+    // Trigger Toast success alert and redirect to Dashboard immediately upon saving
     LaunchedEffect(saveState) {
         if (saveState is UiState.Success && (saveState as UiState.Success<String>).data.isNotEmpty()) {
-            kotlinx.coroutines.delay(3000)
+            Toast.makeText(context, (saveState as UiState.Success<String>).data, Toast.LENGTH_SHORT).show()
             viewModel.clearSaveState()
+            navController.popBackStack() // Redirect back to Dashboard
         }
     }
 
@@ -137,6 +143,27 @@ fun WeeklyGoalsScreen(
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                     TimePicker(state = timePickerState)
+                }
+            }
+        )
+    }
+
+    if (showOverwriteDialog) {
+        AlertDialog(
+            onDismissRequest = { showOverwriteDialog = false },
+            title = { Text("¿Sobrescribir meta actual?", fontWeight = FontWeight.Bold) },
+            text = { Text("Ya tienes una meta configurada para esta semana. Si guardas una nueva se reemplazará la anterior y se perderán los objetivos previos.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showOverwriteDialog = false
+                    viewModel.saveGoal(minHours, requiredDays, bedtimeHour, bedtimeMinute)
+                }) {
+                    Text("Sobrescribir", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOverwriteDialog = false }) {
+                    Text("Cancelar")
                 }
             }
         )
@@ -189,7 +216,7 @@ fun WeeklyGoalsScreen(
                     )
 
                     Text(
-                        text = "Objetivos de Higiene",
+                        text = "Tus Objetivos de Sueño",
                         style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold),
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(bottom = 16.dp)
@@ -283,7 +310,7 @@ fun WeeklyGoalsScreen(
                                 )
                             }
 
-                            // 2. Required Days Selector
+                            // 2. Required Days Selector (Responsive weight layout)
                             Column {
                                 Text(
                                     text = "Días requeridos en la semana",
@@ -291,7 +318,7 @@ fun WeeklyGoalsScreen(
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
                                 Row(
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     (1..7).forEach { day ->
@@ -299,7 +326,8 @@ fun WeeklyGoalsScreen(
                                         Box(
                                             contentAlignment = Alignment.Center,
                                             modifier = Modifier
-                                                .size(42.dp)
+                                                .weight(1f) // Distributes space evenly across all screens
+                                                .aspectRatio(1f) // Keeps circles perfectly round
                                                 .background(
                                                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                                                     shape = CircleShape
@@ -314,17 +342,18 @@ fun WeeklyGoalsScreen(
                                             Text(
                                                 text = day.toString(),
                                                 fontWeight = FontWeight.Bold,
-                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                                fontSize = 14.sp
                                             )
                                         }
                                     }
                                 }
                             }
 
-                            // 3. Bedtime TimePicker Button
+                            // 3. Bedtime TimePicker Button (Responsive text alignment)
                             Column {
                                 Text(
-                                    text = "Hora límite de acostarse",
+                                    text = "Hora de acostarse",
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
@@ -340,11 +369,15 @@ fun WeeklyGoalsScreen(
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                                 ) {
                                     Row(
-                                        horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                                     ) {
-                                        Text("Establecer horario de descanso")
+                                        Text(
+                                            text = "Hora límite de descanso",
+                                            modifier = Modifier.weight(1f),
+                                            fontSize = 14.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                         Text(
                                             text = timeLabel,
                                             fontWeight = FontWeight.ExtraBold,
@@ -359,7 +392,7 @@ fun WeeklyGoalsScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Show success/error banners
+                    // Show error banners if any
                     if (saveState is UiState.Error) {
                         Text(
                             text = (saveState as UiState.Error).message,
@@ -369,22 +402,19 @@ fun WeeklyGoalsScreen(
                         )
                     }
 
-                    if (saveState is UiState.Success && (saveState as UiState.Success<String>).data.isNotEmpty()) {
-                        Text(
-                            text = (saveState as UiState.Success<String>).data,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
-                    }
-
-                    // Save Button
+                    // Save Button (Checks for overwrite)
                     if (saveState is UiState.Loading) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     } else {
                         Button(
                             onClick = {
-                                viewModel.saveGoal(minHours, requiredDays, bedtimeHour, bedtimeMinute)
+                                if (goal != null) {
+                                    // Trigger overwrite confirmation
+                                    showOverwriteDialog = true
+                                } else {
+                                    // Save directly
+                                    viewModel.saveGoal(minHours, requiredDays, bedtimeHour, bedtimeMinute)
+                                }
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
