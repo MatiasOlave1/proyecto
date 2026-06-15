@@ -21,12 +21,17 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
 
+import androidx.compose.ui.platform.LocalContext
+import com.camposocampoolavevargas.proyecto.service.notification.DisconnectReminderReceiver
+
 /**
  * Screen for Disconnect Reminder (RF10 — Ventana de desconexión).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DisconnectReminderScreen(navController: NavController) {
+    val context = LocalContext.current
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -34,7 +39,7 @@ fun DisconnectReminderScreen(navController: NavController) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(text = "Disconnect Reminder") }
+                    title = { Text(text = "Desconexión") }
                 )
             }
         ) { paddingValues ->
@@ -48,16 +53,28 @@ fun DisconnectReminderScreen(navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Disconnect Reminder",
+                        text = "Ventana de Desconexión",
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Implementar RF10 — Ventana de desconexión",
+                        text = "Prepara tu entorno para un sueño reparador.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp)
                     )
+
+                    // TEST BUTTON: Lanza la notificación inmediatamente
+                    Button(
+                        onClick = { 
+                            val intent = android.content.Intent(context, DisconnectReminderReceiver::class.java)
+                            context.sendBroadcast(intent)
+                        },
+                        modifier = Modifier.padding(top = 32.dp)
+                    ) {
+                        Text(text = "Probar Notificación Ahora")
+                    }
+
                     Button(
                         onClick = { navController.popBackStack() },
                         modifier = Modifier.padding(top = 16.dp)

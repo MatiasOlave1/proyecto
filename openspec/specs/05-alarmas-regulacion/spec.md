@@ -15,9 +15,7 @@ El sistema gestionará las alarmas del usuario en la tabla `ALARMA`:
 | `activa` | INTEGER | NOT NULL | Indica si la alarma está activa (1 = Activa, 0 = Inactiva) |
 | `spotify_playlist` | TEXT | NULLABLE | URI o enlace de la playlist de Spotify seleccionada |
 | `creado_at` | TEXT | NOT NULL | Timestamp de creación en formato ISO 8601 UTC |
-
 ## Requirements
-
 ### Requirement: Alarma de alta confiabilidad y recordatorios preventivos
 El sistema SHALL ejecutar las alarmas configuradas superando el estado de suspensión profunda (Doze Mode) del sistema operativo y emitir avisos de desconexión nocturna.
 
@@ -36,3 +34,5 @@ El sistema SHALL ejecutar las alarmas configuradas superando el estado de suspen
 - **WHEN** el tiempo actual del sistema se sitúa exactamente 90 minutos antes de dicha hora:
   $$t_{\text{alerta}} = t_{\text{límite\_acostarse}} - 90\text{ minutos}$$
 - **THEN** el sistema DEBERÁ disparar de manera automatizada una notificación push de baja luminancia sugiriendo al usuario iniciar el proceso de desconexión y activar el filtro de luz azul del dispositivo.
+- **AND** al tocar la notificación, el sistema DEBERÁ redirigir al usuario a la pantalla de Recordatorio de Desconexión (`DisconnectReminderScreen`).
+

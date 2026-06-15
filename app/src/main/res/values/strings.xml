@@ -1,3 +1,7 @@
 <resources>
-    <string name="app_name">proyecto</string>
+    <string name="app_name">DormiBienU</string>
+    <string name="notification_disconnect_title">Es hora de acostarse 🌙</string>
+    <string name="notification_disconnect_body">Tu meta de sueño está cerca. Inicia tu desconexión y activa el filtro de luz azul.</string>
+    <string name="notification_channel_name">Ventana de Desconexión</string>
+    <string name="notification_channel_description">Recordatorios para iniciar la higiene del sueño</string>
 </resources>
