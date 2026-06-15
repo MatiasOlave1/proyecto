@@ -8,6 +8,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.camposocampoolavevargas.proyecto.model.SleepManager
 import com.camposocampoolavevargas.proyecto.model.SleepRecord
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,9 +106,7 @@ fun SleepRegisterScreen() {
                     opcionesCalidad.forEach { opcion ->
 
                         DropdownMenuItem(
-                            text = {
-                                Text(opcion)
-                            },
+                            text = { Text(opcion) },
                             onClick = {
                                 calidad = opcion
                                 expanded = false
@@ -127,82 +127,104 @@ fun SleepRegisterScreen() {
                         horaDespertar.isBlank() ||
                         calidad.isBlank()
                     ) {
-
                         mensaje = "Debe completar todos los campos"
                         colorMensaje = Color.Red
 
                     } else {
 
-                        val partesDormir = horaDormir.split(":")
-                        val partesDespertar = horaDespertar.split(":")
+                        // 🔥 VALIDACIÓN DE FECHA (NUEVO)
+                        val formatoFecha = SimpleDateFormat(
+                            "dd/MM/yyyy",
+                            Locale.getDefault()
+                        )
 
-                        if (
-                            partesDormir.size != 2 ||
-                            partesDespertar.size != 2
-                        ) {
+                        formatoFecha.isLenient = false
 
-                            mensaje = "Formato de hora inválido"
+                        val fechaValida = try {
+                            formatoFecha.parse(fecha)
+                            true
+                        } catch (e: Exception) {
+                            false
+                        }
+
+                        if (!fechaValida) {
+
+                            mensaje = "Ingrese una fecha válida (dd/MM/yyyy)"
                             colorMensaje = Color.Red
 
                         } else {
 
-                            val horaDormirInt = partesDormir[0].toIntOrNull()
-                            val minutoDormirInt = partesDormir[1].toIntOrNull()
-
-                            val horaDespertarInt = partesDespertar[0].toIntOrNull()
-                            val minutoDespertarInt = partesDespertar[1].toIntOrNull()
+                            val partesDormir = horaDormir.split(":")
+                            val partesDespertar = horaDespertar.split(":")
 
                             if (
-                                horaDormirInt == null ||
-                                minutoDormirInt == null ||
-                                horaDespertarInt == null ||
-                                minutoDespertarInt == null ||
-                                horaDormirInt !in 0..23 ||
-                                horaDespertarInt !in 0..23 ||
-                                minutoDormirInt !in 0..59 ||
-                                minutoDespertarInt !in 0..59
+                                partesDormir.size != 2 ||
+                                partesDespertar.size != 2
                             ) {
 
-                                mensaje = "Ingrese horas válidas"
+                                mensaje = "Formato de hora inválido"
                                 colorMensaje = Color.Red
 
                             } else {
 
-                                val minutosDormir =
-                                    horaDormirInt * 60 + minutoDormirInt
+                                val horaDormirInt = partesDormir[0].toIntOrNull()
+                                val minutoDormirInt = partesDormir[1].toIntOrNull()
 
-                                val minutosDespertar =
-                                    horaDespertarInt * 60 + minutoDespertarInt
+                                val horaDespertarInt = partesDespertar[0].toIntOrNull()
+                                val minutoDespertarInt = partesDespertar[1].toIntOrNull()
 
-                                var diferencia =
-                                    minutosDespertar - minutosDormir
+                                if (
+                                    horaDormirInt == null ||
+                                    minutoDormirInt == null ||
+                                    horaDespertarInt == null ||
+                                    minutoDespertarInt == null ||
+                                    horaDormirInt !in 0..23 ||
+                                    horaDespertarInt !in 0..23 ||
+                                    minutoDormirInt !in 0..59 ||
+                                    minutoDespertarInt !in 0..59
+                                ) {
 
-                                if (diferencia < 0) {
-                                    diferencia += 24 * 60
+                                    mensaje = "Ingrese horas válidas"
+                                    colorMensaje = Color.Red
+
+                                } else {
+
+                                    val minutosDormir =
+                                        horaDormirInt * 60 + minutoDormirInt
+
+                                    val minutosDespertar =
+                                        horaDespertarInt * 60 + minutoDespertarInt
+
+                                    var diferencia =
+                                        minutosDespertar - minutosDormir
+
+                                    if (diferencia < 0) {
+                                        diferencia += 24 * 60
+                                    }
+
+                                    val horasDormidas =
+                                        diferencia / 60.0
+
+                                    val registro = SleepRecord(
+                                        fecha = fecha,
+                                        horaDormir = horaDormir,
+                                        horaDespertar = horaDespertar,
+                                        horasDormidas = horasDormidas,
+                                        calidadSueno = calidad
+                                    )
+
+                                    SleepManager.agregarRegistro(registro)
+
+                                    mensaje =
+                                        "Registro guardado (${String.format("%.1f", horasDormidas)} horas)"
+
+                                    colorMensaje = Color.Blue
+
+                                    fecha = ""
+                                    horaDormir = ""
+                                    horaDespertar = ""
+                                    calidad = ""
                                 }
-
-                                val horasDormidas =
-                                    diferencia / 60.0
-
-                                val registro = SleepRecord(
-                                    fecha = fecha,
-                                    horaDormir = horaDormir,
-                                    horaDespertar = horaDespertar,
-                                    horasDormidas = horasDormidas,
-                                    calidadSueno = calidad
-                                )
-
-                                SleepManager.agregarRegistro(registro)
-
-                                mensaje =
-                                    "Registro guardado (${String.format("%.1f", horasDormidas)} horas)"
-
-                                colorMensaje = Color.Blue
-
-                                fecha = ""
-                                horaDormir = ""
-                                horaDespertar = ""
-                                calidad = ""
                             }
                         }
                     }
