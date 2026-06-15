@@ -222,7 +222,59 @@ fun DashboardTabContent(navController: NavController) {
             }
         }
 
-        // --- 3. CARD: JET LAG SOCIAL ALERT ---
+        // --- 3. CARD: WEEKLY GOALS CONFIGURATION ---
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp)
+            ) {
+                Text(
+                    text = "Metas Semanales de Sueño",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Configura tus objetivos de sueño (horas mínimas, días consecutivos y hora límite) para activar la gamificación.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = { navController.navigate(Screen.WeeklyGoals.route) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFF78166), // Use custom coral/orange theme color
+                        contentColor = Color.White
+                    )
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Configurar Metas de la Semana",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowRight,
+                            contentDescription = "Flecha"
+                        )
+                    }
+                }
+            }
+        }
+
+        // --- 4. CARD: JET LAG SOCIAL ALERT ---
         Card(
             modifier = Modifier
                 .fillMaxWidth()
