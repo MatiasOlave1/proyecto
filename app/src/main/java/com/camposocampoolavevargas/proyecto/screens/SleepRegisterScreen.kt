@@ -207,7 +207,10 @@ fun SleepRegisterScreen() {
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF1976D2)
+                )
             ) {
                 Text("Guardar Registro")
             }
