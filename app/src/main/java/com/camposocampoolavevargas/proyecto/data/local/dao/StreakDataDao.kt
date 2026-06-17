@@ -18,5 +18,8 @@ interface StreakDataDao {
 
     @Query("SELECT * FROM streak_data WHERE userId = :userId LIMIT 1")
     fun getStreakByUser(userId: String): Flow<StreakDataEntity?>
+
+    @Query("SELECT * FROM streak_data WHERE userId = :userId LIMIT 1")
+    suspend fun getStreakByUserDirect(userId: String): StreakDataEntity?
 }
 
