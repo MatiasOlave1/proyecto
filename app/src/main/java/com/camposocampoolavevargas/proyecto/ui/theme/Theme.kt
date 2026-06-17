@@ -50,7 +50,7 @@ fun DormiBienUTheme(
     }
 
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = DormiBienUScheme,
         typography = Typography,
         content = content
     )
