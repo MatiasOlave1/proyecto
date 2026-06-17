@@ -5,10 +5,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+// ==========================================
+// 1. Color Scheme for ccampos / dev screens
+// ==========================================
 private val DarkColorScheme = darkColorScheme(
     background = Background,
     surface = Surface,
@@ -23,6 +27,20 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = OnSurface,
     onSurfaceVariant = OnSurfaceVariant,
     outline = Outline
+)
+
+// ==========================================
+// 2. Color Scheme for molave (Classmate) screens
+// ==========================================
+private val DormiBienUScheme = darkColorScheme(
+    primary = PrimaryOrange,
+    secondary = SecondaryOrange,
+    background = DarkBackground,
+    surface = CardBackground,
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onBackground = TextWhite,
+    onSurface = TextWhite
 )
 
 /**
@@ -50,9 +68,22 @@ fun DormiBienUTheme(
     }
 
     MaterialTheme(
-        colorScheme = DormiBienUScheme,
+        colorScheme = colorScheme,
         typography = Typography,
         content = content
     )
 }
 
+/**
+ * Classmate's Theme wrapper using their specific color palette.
+ */
+@Composable
+fun ProyectoTheme(
+    content: @Composable () -> Unit
+) {
+    MaterialTheme(
+        colorScheme = DormiBienUScheme,
+        typography = Typography,
+        content = content
+    )
+}
