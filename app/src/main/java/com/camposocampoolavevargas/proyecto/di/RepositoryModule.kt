@@ -1,5 +1,7 @@
 package com.camposocampoolavevargas.proyecto.di
 
+import com.camposocampoolavevargas.proyecto.data.repository.DisconnectSettingsRepository
+import com.camposocampoolavevargas.proyecto.data.repository.DisconnectSettingsRepositoryImpl
 import com.camposocampoolavevargas.proyecto.data.repository.WeeklyGoalRepository
 import com.camposocampoolavevargas.proyecto.data.repository.WeeklyGoalRepositoryImpl
 import dagger.Binds
@@ -17,4 +19,10 @@ abstract class RepositoryModule {
     abstract fun bindWeeklyGoalRepository(
         weeklyGoalRepositoryImpl: WeeklyGoalRepositoryImpl
     ): WeeklyGoalRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDisconnectSettingsRepository(
+        disconnectSettingsRepositoryImpl: DisconnectSettingsRepositoryImpl
+    ): DisconnectSettingsRepository
 }

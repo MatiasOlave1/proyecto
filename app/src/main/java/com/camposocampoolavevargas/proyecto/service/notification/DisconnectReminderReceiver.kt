@@ -5,15 +5,17 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.camposocampoolavevargas.proyecto.MainActivity
 
 /**
  * BroadcastReceiver responsible for triggering the Disconnect Window notification.
- * This is called by AlarmManager 90 minutes before the target bedtime.
+ * This is called by AlarmManager at the user-configured time before bedtime.
  */
 class DisconnectReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        Log.d("DisconnectAlarm", "Broadcast received! Building notification...")
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
         // Intent to open MainActivity and potentially navigate to the disconnect screen

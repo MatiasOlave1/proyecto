@@ -17,7 +17,7 @@ El sistema gestionará las alarmas del usuario en la tabla `ALARMA`:
 | `creado_at` | TEXT | NOT NULL | Timestamp de creación en formato ISO 8601 UTC |
 ## Requirements
 ### Requirement: Alarma de alta confiabilidad y recordatorios preventivos
-El sistema SHALL ejecutar las alarmas configuradas superando el estado de suspensión profunda (Doze Mode) del sistema operativo y emitir avisos de desconexión nocturna.
+El sistema SHALL ejecutar las alarmas configuradas superando el estado de suspensión profunda (Doze Mode) del sistema operativo y emitir avisos de desconexión nocturna basados en la fuente de tiempo seleccionada (Manual o Racha Semanal).
 
 #### Scenario: Activación de la Alarma con Integración de Spotify
 - **GIVEN** una alarma activa programada a una hora específica (ej: 07:00 AM).
@@ -30,9 +30,31 @@ El sistema SHALL ejecutar las alarmas configuradas superando el estado de suspen
 - **THEN** el sistema DEBERÁ usar por seguridad el tono de alarma de respaldo almacenado de manera local en el almacenamiento interno del dispositivo.
 
 #### Scenario: Recordatorio automático de "Ventana de Desconexión"
-- **GIVEN** la `hora_limite_acostarse` configurada en la meta semanal activa (ej: 23:00).
+- **GIVEN** la hora de acostarse determinada por la fuente seleccionada (Manual o Racha Semanal).
 - **WHEN** el tiempo actual del sistema se sitúa exactamente 90 minutos antes de dicha hora:
   $$t_{\text{alerta}} = t_{\text{límite\_acostarse}} - 90\text{ minutos}$$
 - **THEN** el sistema DEBERÁ disparar de manera automatizada una notificación push de baja luminancia sugiriendo al usuario iniciar el proceso de desconexión y activar el filtro de luz azul del dispositivo.
 - **AND** al tocar la notificación, el sistema DEBERÁ redirigir al usuario a la pantalla de Recordatorio de Desconexión (`DisconnectReminderScreen`).
+
+### Requirement: Configuración manual de la hora de acostarse
+El sistema SHALL permitir al usuario configurar manualmente una hora específica para acostarse desde la pantalla de recordatorio de desconexión (`DisconnectReminderScreen`).
+
+#### Scenario: Usuario cambia la hora de acostarse manualmente
+- **WHEN** el usuario interactúa con el selector de hora en la `DisconnectReminderScreen`.
+- **AND** selecciona una nueva hora (ej: 22:30).
+- **THEN** el sistema DEBERÁ persistir esta hora como la "Hora de Acostarse Manual".
+- **AND** reprogramar la notificación de desconexión para dispararse 90 minutos antes de la nueva hora configurada.
+
+### Requirement: Selección de la fuente para la hora de desconexión
+El sistema SHALL permitir al usuario alternar entre usar la "Hora de Acostarse Manual" o la hora derivada de la "Racha Semanal" (u objetivo semanal activo mientras la racha no esté disponible).
+
+#### Scenario: Cambio a modo manual
+- **GIVEN** que el sistema está configurado para usar la racha semanal.
+- **WHEN** el usuario selecciona la opción "Manual".
+- **THEN** el sistema DEBERÁ utilizar la hora configurada manualmente para calcular el momento de la notificación.
+
+#### Scenario: Cambio a modo racha semanal
+- **GIVEN** que el sistema está configurado para usar el modo manual.
+- **WHEN** el usuario selecciona la opción "Racha Semanal".
+- **THEN** el sistema DEBERÁ utilizar la `hora_limite_acostarse` de la meta semanal activa (como fallback mientras la racha no esté implementada) para calcular el momento de la notificación.
 

@@ -19,13 +19,20 @@ interface WeeklyGoalRepository {
 @Singleton
 class WeeklyGoalRepositoryImpl @Inject constructor(
     private val weeklyGoalDao: WeeklyGoalDao,
-    private val alarmScheduler: DisconnectAlarmScheduler
+    private val alarmScheduler: DisconnectAlarmScheduler,
+    private val settingsRepository: DisconnectSettingsRepository
 ) : WeeklyGoalRepository {
 
     override suspend fun saveGoal(goal: WeeklyGoalEntity) {
         weeklyGoalDao.insertGoal(goal)
-        // Whenever a goal is saved, we schedule the disconnect reminder automatically.
-        alarmScheduler.scheduleReminder(goal.bedtimeLimitMillis)
+        
+        // If the mode is manual, we don't automatically reschedule here 
+        // as the manual configuration screen handles its own scheduling.
+        // But if it's WEEKLY_STREAK, we should update the alarm based on the new goal.
+        if (settingsRepository.getDisconnectMode() == DisconnectMode.WEEKLY_STREAK) {
+            val offset = settingsRepository.getReminderOffsetMinutes()
+            alarmScheduler.scheduleReminder(goal.bedtimeLimitMillis, offset)
+        }
     }
 
     override fun getCurrentGoal(userId: String, isoWeek: Int, isoYear: Int): Flow<WeeklyGoalEntity?> {

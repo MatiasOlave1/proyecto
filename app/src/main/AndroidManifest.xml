@@ -18,6 +18,7 @@
 
         <receiver
             android:name=".service.notification.DisconnectReminderReceiver"
+            android:enabled="true"
             android:exported="false" />
 
         <receiver

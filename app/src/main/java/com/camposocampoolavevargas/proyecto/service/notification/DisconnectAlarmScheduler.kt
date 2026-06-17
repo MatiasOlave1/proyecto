@@ -5,8 +5,13 @@ package com.camposocampoolavevargas.proyecto.service.notification
  */
 interface DisconnectAlarmScheduler {
     /**
-     * Schedules a reminder notification 90 minutes before the given [bedtimeMillisFromMidnight].
+     * Schedules a reminder notification [offsetMinutes] before the given [bedtimeMillisFromMidnight].
      * [bedtimeMillisFromMidnight] is milliseconds from midnight (e.g. 23:00 = 82800000).
      */
-    fun scheduleReminder(bedtimeMillisFromMidnight: Long)
+    fun scheduleReminder(bedtimeMillisFromMidnight: Long, offsetMinutes: Int)
+
+    /**
+     * Schedules a reminder notification 5 seconds from now for testing purposes.
+     */
+    fun scheduleTestReminder()
 }
