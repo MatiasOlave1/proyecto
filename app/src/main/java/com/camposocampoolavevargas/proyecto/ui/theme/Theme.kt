@@ -1,88 +1,57 @@
 package com.camposocampoolavevargas.proyecto.ui.theme
 
 import android.app.Activity
+import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
+import androidx.compose.ui.platform.LocalContext
 
-// ==========================================
-// 1. Color Scheme for ccampos / dev screens
-// ==========================================
 private val DarkColorScheme = darkColorScheme(
-    background = Background,
-    surface = Surface,
-    surfaceVariant = SurfaceVariant,
-    primary = Primary,
-    primaryContainer = PrimaryContainer,
-    onPrimary = OnPrimary,
-    secondary = Secondary,
-    onSecondary = OnSecondary,
-    tertiary = Tertiary,
-    onBackground = OnBackground,
-    onSurface = OnSurface,
-    onSurfaceVariant = OnSurfaceVariant,
-    outline = Outline
+    primary = Purple80,
+    secondary = PurpleGrey80,
+    tertiary = Pink80
 )
 
-// ==========================================
-// 2. Color Scheme for molave (Classmate) screens
-// ==========================================
-private val DormiBienUScheme = darkColorScheme(
-    primary = PrimaryOrange,
-    secondary = SecondaryOrange,
-    background = DarkBackground,
-    surface = CardBackground,
+private val LightColorScheme = lightColorScheme(
+    primary = Purple40,
+    secondary = PurpleGrey40,
+    tertiary = Pink40
+
+    /* Other default colors to override
+    background = Color(0xFFFFFBFE),
+    surface = Color(0xFFFFFBFE),
     onPrimary = Color.White,
     onSecondary = Color.White,
-    onBackground = TextWhite,
-    onSurface = TextWhite
+    onTertiary = Color.White,
+    onBackground = Color(0xFF1C1B1F),
+    onSurface = Color(0xFF1C1B1F),
+    */
 )
 
-/**
- * Custom Material Design 3 theme for DormiBienU.
- * Forces dark mode colors always, ignoring system settings.
- */
 @Composable
-fun DormiBienUTheme(
+fun ProyectoTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    // Dynamic color is available on Android 12+
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = DarkColorScheme
-    val view = LocalView.current
-
-    if (!view.isInEditMode) {
-        SideEffect {
-            val context = view.context
-            if (context is Activity) {
-                context.window.statusBarColor = colorScheme.background.toArgb()
-                context.window.navigationBarColor = colorScheme.background.toArgb()
-                val windowInsetsController = WindowCompat.getInsetsController(context.window, view)
-                windowInsetsController.isAppearanceLightStatusBars = false
-                windowInsetsController.isAppearanceLightNavigationBars = false
-            }
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
+
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
-}
-
-/**
- * Classmate's Theme wrapper using their specific color palette.
- */
-@Composable
-fun ProyectoTheme(
-    content: @Composable () -> Unit
-) {
-    MaterialTheme(
-        colorScheme = DormiBienUScheme,
         typography = Typography,
         content = content
     )
