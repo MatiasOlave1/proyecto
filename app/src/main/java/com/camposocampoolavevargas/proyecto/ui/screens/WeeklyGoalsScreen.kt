@@ -80,7 +80,7 @@ fun WeeklyGoalsScreen(
     val context = LocalContext.current
 
     var minHours by remember { mutableStateOf(8.0f) }
-    var requiredDays by remember { mutableStateOf(5) }
+    var requiredDays by remember { mutableStateOf(7) }
     var bedtimeHour by remember { mutableStateOf(23) }
     var bedtimeMinute by remember { mutableStateOf(0) }
     
@@ -315,41 +315,54 @@ fun WeeklyGoalsScreen(
                                 )
                             }
 
-                            // 2. Required Days Selector (Responsive weight layout)
+                            // 2. Required Days Selector (Customizable Duration options: 1, 7, 12, 30, 90, 365 days)
                             Column {
                                 Text(
-                                    text = "Días requeridos en la semana",
+                                    text = "Duración / Días requeridos para la meta",
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    (1..7).forEach { day ->
-                                        val isSelected = requiredDays == day
-                                        Box(
-                                            contentAlignment = Alignment.Center,
-                                            modifier = Modifier
-                                                .weight(1f) // Distributes space evenly across all screens
-                                                .aspectRatio(1f) // Keeps circles perfectly round
-                                                .background(
-                                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                                                    shape = CircleShape
-                                                )
-                                                .border(
-                                                    width = 1.dp,
-                                                    color = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outline,
-                                                    shape = CircleShape
-                                                )
-                                                .clickable { requiredDays = day }
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    val rows = listOf(
+                                        listOf(1, 7, 12),
+                                        listOf(30, 90, 365)
+                                    )
+                                    val labels = listOf(
+                                        listOf("1 día", "7 días", "12 días"),
+                                        listOf("30 días", "90 días", "1 año")
+                                    )
+                                    
+                                    rows.forEachIndexed { rowIndex, rowItems ->
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Text(
-                                                text = day.toString(),
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                                                fontSize = 14.sp
-                                            )
+                                            rowItems.forEachIndexed { colIndex, dayVal ->
+                                                val isSelected = requiredDays == dayVal
+                                                Box(
+                                                    contentAlignment = Alignment.Center,
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .height(44.dp)
+                                                        .background(
+                                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                                                            shape = RoundedCornerShape(8.dp)
+                                                        )
+                                                        .border(
+                                                            width = 1.dp,
+                                                            color = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outline,
+                                                            shape = RoundedCornerShape(8.dp)
+                                                        )
+                                                        .clickable { requiredDays = dayVal }
+                                                ) {
+                                                    Text(
+                                                        text = labels[rowIndex][colIndex],
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                                        fontSize = 13.sp
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
