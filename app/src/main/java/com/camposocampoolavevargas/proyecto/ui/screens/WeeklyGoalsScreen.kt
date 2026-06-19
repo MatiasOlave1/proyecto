@@ -34,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -41,6 +42,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -81,6 +84,7 @@ fun WeeklyGoalsScreen(
 
     var minHours by remember { mutableStateOf(8.0f) }
     var requiredDays by remember { mutableStateOf(7) }
+    var customDaysText by remember { mutableStateOf("") }
     var bedtimeHour by remember { mutableStateOf(23) }
     var bedtimeMinute by remember { mutableStateOf(0) }
     
@@ -92,6 +96,7 @@ fun WeeklyGoalsScreen(
         goal?.let {
             minHours = it.minHours
             requiredDays = it.requiredDays
+            customDaysText = it.requiredDays.toString()
             
             val millis = it.bedtimeLimitMillis
             bedtimeHour = (millis / (1000 * 60 * 60)).toInt()
@@ -353,7 +358,10 @@ fun WeeklyGoalsScreen(
                                                             color = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outline,
                                                             shape = RoundedCornerShape(8.dp)
                                                         )
-                                                        .clickable { requiredDays = dayVal }
+                                                        .clickable { 
+                                                            requiredDays = dayVal
+                                                            customDaysText = dayVal.toString()
+                                                        }
                                                 ) {
                                                     Text(
                                                         text = labels[rowIndex][colIndex],
@@ -365,6 +373,25 @@ fun WeeklyGoalsScreen(
                                             }
                                         }
                                     }
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    // Input for arbitrary days
+                                    OutlinedTextField(
+                                        value = customDaysText,
+                                        onValueChange = { input ->
+                                            val filtered = input.filter { it.isDigit() }
+                                            customDaysText = filtered
+                                            val parsed = filtered.toIntOrNull()
+                                            if (parsed != null) {
+                                                requiredDays = parsed.coerceIn(1, 365)
+                                            }
+                                        },
+                                        label = { Text("O ingresar días personalizados (1-365)") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                    )
                                 }
                             }
 

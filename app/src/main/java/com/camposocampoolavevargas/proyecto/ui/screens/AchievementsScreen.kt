@@ -117,7 +117,7 @@ private fun getAchievementDisplay(
             description = "Reclamado: ${points / 10} veces",
             icon = "🥚",
             color = Color(0xFFFF79C6), // Pink
-            progress = 1.0f,
+            progress = if (unlocked) 1.0f else 0.0f,
             progressText = "Reclamado: ${points / 10} veces"
         )
     }
@@ -135,12 +135,12 @@ private fun getAchievementInstructions(type: AchievementType): String {
 }
 
 private fun formatDate(timestamp: Long?): String {
-    if (timestamp == null) return ""
+    if (timestamp == null) return "Fecha desconocida"
     return try {
         val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
         sdf.format(Date(timestamp))
     } catch (e: Exception) {
-        ""
+        "Fecha desconocida"
     }
 }
 

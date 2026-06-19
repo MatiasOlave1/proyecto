@@ -200,7 +200,7 @@ class SleepLogViewModel @Inject constructor(
                 type = AchievementType.DISCIPLINE_5_DAYS,
                 condition = currentStreak >= 5,
                 title = "Disciplina",
-                desc = "Mantuviste tu racha de sueño por 5 days."
+                desc = "Mantuviste tu racha de sueño por 5 días."
             )
             checkAndUnlock(
                 type = AchievementType.PERFECT_WEEK,

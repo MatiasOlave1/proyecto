@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 /**
@@ -80,8 +82,9 @@ class AchievementsViewModel @Inject constructor(
             try {
                 // Get the first emitted list to check if achievements need seeding
                 val achievements = achievementsFlow.first()
-                if (achievements.isEmpty()) {
-                    for (type in AchievementType.values()) {
+                val existingTypes = achievements.map { it.type }.toSet()
+                for (type in AchievementType.values()) {
+                    if (!existingTypes.contains(type)) {
                         val points = when (type) {
                             AchievementType.FIRST_RECORD -> 50
                             AchievementType.DISCIPLINE_5_DAYS -> 100
@@ -108,6 +111,7 @@ class AchievementsViewModel @Inject constructor(
     }
 
     private val clickTimestamps = mutableListOf<Long>()
+    private val easterEggMutex = Mutex()
 
     /**
      * Handles clicks on the test button.
@@ -132,40 +136,42 @@ class AchievementsViewModel @Inject constructor(
     private fun unlockEasterEgg() {
         viewModelScope.launch {
             if (_userId.isEmpty()) return@launch
-            try {
-                // Ensure the row exists in database (due to seed, it should, but insert as ignore for safety)
-                achievementDao.insertAchievement(
-                    AchievementEntity(
+            easterEggMutex.withLock {
+                try {
+                    // Ensure the row exists in database (due to seed, it should, but insert as ignore for safety)
+                    achievementDao.insertAchievement(
+                        AchievementEntity(
+                            userId = _userId,
+                            type = AchievementType.EASTER_EGG,
+                            unlocked = false,
+                            points = 0
+                        )
+                    )
+
+                    // Fetch current points to increment the claim count (each claim adds 10 points)
+                    val achievements = achievementsFlow.first()
+                    val egg = achievements.firstOrNull { it.type == AchievementType.EASTER_EGG }
+                    val currentPoints = egg?.points ?: 0
+                    val newPoints = currentPoints + 10
+
+                    // Unlock/update achievement
+                    achievementDao.unlockAchievement(
                         userId = _userId,
                         type = AchievementType.EASTER_EGG,
-                        unlocked = false,
-                        points = 0
+                        unlockedAt = System.currentTimeMillis(),
+                        points = newPoints
                     )
-                )
 
-                // Fetch current points to increment the claim count (each claim adds 10 points)
-                val achievements = achievementsFlow.first()
-                val egg = achievements.firstOrNull { it.type == AchievementType.EASTER_EGG }
-                val currentPoints = egg?.points ?: 0
-                val newPoints = currentPoints + 10
-
-                // Unlock/update achievement
-                achievementDao.unlockAchievement(
-                    userId = _userId,
-                    type = AchievementType.EASTER_EGG,
-                    unlockedAt = System.currentTimeMillis(),
-                    points = newPoints
-                )
-
-                // Trigger push notification
-                val claimsCount = newPoints / 10
-                NotificationHelper.showAchievementNotification(
-                    context = context,
-                    title = "¡Easter Egg Desbloqueado! 🥚",
-                    message = "Has reclamado el logro de prueba. Total: $claimsCount veces."
-                )
-            } catch (e: Exception) {
-                e.printStackTrace()
+                    // Trigger push notification
+                    val claimsCount = newPoints / 10
+                    NotificationHelper.showAchievementNotification(
+                        context = context,
+                        title = "¡Easter Egg Desbloqueado! 🥚",
+                        message = "Has reclamado el logro de prueba. Total: $claimsCount veces."
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
     }
