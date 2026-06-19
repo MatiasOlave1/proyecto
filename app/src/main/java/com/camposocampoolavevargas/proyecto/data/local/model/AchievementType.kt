@@ -8,6 +8,7 @@ enum class AchievementType {
     PERFECT_WEEK,
     DISCIPLINE_5_DAYS,
     STREAK_10,
-    STREAK_30
+    STREAK_30,
+    EASTER_EGG
 }
 

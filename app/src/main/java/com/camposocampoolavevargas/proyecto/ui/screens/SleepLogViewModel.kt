@@ -1,15 +1,21 @@
 package com.camposocampoolavevargas.proyecto.ui.screens
 
+import android.content.Context
 import androidx.lifecycle.viewModelScope
 import com.camposocampoolavevargas.proyecto.data.local.UserSession
 import com.camposocampoolavevargas.proyecto.data.local.dao.SleepRecordDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.StreakDataDao
+import com.camposocampoolavevargas.proyecto.data.local.dao.AchievementDao
 import com.camposocampoolavevargas.proyecto.data.local.entity.SleepRecordEntity
 import com.camposocampoolavevargas.proyecto.data.local.entity.StreakDataEntity
+import com.camposocampoolavevargas.proyecto.data.local.entity.AchievementEntity
 import com.camposocampoolavevargas.proyecto.data.local.model.SleepQuality
 import com.camposocampoolavevargas.proyecto.data.local.model.SyncStatus
+import com.camposocampoolavevargas.proyecto.data.local.model.AchievementType
 import com.camposocampoolavevargas.proyecto.ui.BaseViewModel
+import com.camposocampoolavevargas.proyecto.util.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -26,8 +32,10 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class SleepLogViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val sleepRecordDao: SleepRecordDao,
     private val streakDataDao: StreakDataDao,
+    private val achievementDao: AchievementDao,
     private val userSession: UserSession
 ) : BaseViewModel() {
 
@@ -128,10 +136,92 @@ class SleepLogViewModel @Inject constructor(
                 )
                 sleepRecordDao.insertRecord(record)
                 updateStreakAfterLog(userId, dateVal)
+                
+                // Evaluate and unlock achievements asynchronously
+                evaluateAchievementsAfterLog(userId)
+                
                 _isSaveSuccessful.value = true
             } catch (e: Exception) {
                 _errorMessage.value = "Error al guardar: ${e.localizedMessage ?: "Desconocido"}"
             }
+        }
+    }
+
+    /**
+     * Rules engine to evaluate and unlock achievements after a sleep log and streak update.
+     */
+    private suspend fun evaluateAchievementsAfterLog(userId: String) {
+        try {
+            val totalRecordsCount = sleepRecordDao.getRecordsByUserIdDirect(userId).size
+            val currentStreakData = streakDataDao.getStreakByUserDirect(userId)
+            val currentStreak = currentStreakData?.currentStreak ?: 0
+
+            suspend fun checkAndUnlock(type: AchievementType, condition: Boolean, title: String, desc: String) {
+                if (condition) {
+                    val isAlreadyUnlocked = achievementDao.isAchievementUnlocked(userId, type)
+                    if (!isAlreadyUnlocked) {
+                        val points = when (type) {
+                            AchievementType.FIRST_RECORD -> 50
+                            AchievementType.DISCIPLINE_5_DAYS -> 100
+                            AchievementType.PERFECT_WEEK -> 150
+                            AchievementType.STREAK_10 -> 200
+                            AchievementType.STREAK_30 -> 500
+                            AchievementType.EASTER_EGG -> 0
+                        }
+                        // Insert/update achievement in database
+                        achievementDao.insertAchievement(
+                            AchievementEntity(
+                                userId = userId,
+                                type = type,
+                                unlocked = false,
+                                points = points
+                            )
+                        )
+                        achievementDao.unlockAchievement(userId, type, System.currentTimeMillis(), points)
+
+                        // Trigger push notification
+                        NotificationHelper.showAchievementNotification(
+                            context = context,
+                            title = "¡Logro Desbloqueado! 🏆",
+                            message = "$title: $desc"
+                        )
+                    }
+                }
+            }
+
+            // Evaluate specific achievements
+            checkAndUnlock(
+                type = AchievementType.FIRST_RECORD,
+                condition = totalRecordsCount >= 1,
+                title = "Primer Paso",
+                desc = "Has registrado tu primer descanso."
+            )
+            checkAndUnlock(
+                type = AchievementType.DISCIPLINE_5_DAYS,
+                condition = currentStreak >= 5,
+                title = "Disciplina",
+                desc = "Mantuviste tu racha de sueño por 5 días."
+            )
+            checkAndUnlock(
+                type = AchievementType.PERFECT_WEEK,
+                condition = currentStreak >= 7,
+                title = "Perfecto",
+                desc = "Registraste tu sueño durante 7 días continuos."
+            )
+            checkAndUnlock(
+                type = AchievementType.STREAK_10,
+                condition = currentStreak >= 10,
+                title = "Constancia",
+                desc = "¡Alcanzaste una racha de 10 días de registro!"
+            )
+            checkAndUnlock(
+                type = AchievementType.STREAK_30,
+                condition = currentStreak >= 30,
+                title = "Búho Sincronizado",
+                desc = "¡Increíble! Lograste una racha de 30 días."
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
