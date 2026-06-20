@@ -3,6 +3,7 @@ package com.camposocampoolavevargas.proyecto.ui.screens
 import android.content.res.Configuration.UI_MODE_NIGHT_YES
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,10 +66,14 @@ fun DashboardTabContent(
 ) {
     val scrollState = rememberScrollState()
     val currentGoal by viewModel.currentGoal.collectAsState()
-
-    // Reload active goal every time this screen becomes active/visible
+    val streakData by viewModel.streakData.collectAsState()
+    val streakDays = streakData?.currentStreak ?: 0
+    val streakProgress = if (streakDays == 0) 0f else (streakDays.toFloat() / 10f).coerceAtMost(1f)
+ 
+    // Reload active goal and streak data every time this screen becomes active/visible
     LaunchedEffect(Unit) {
         viewModel.loadCurrentGoal()
+        viewModel.loadStreakData()
     }
 
     Column(
@@ -83,6 +88,7 @@ fun DashboardTabContent(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable { navController.navigate(Screen.Streaks.route) }
                 .shadow(8.dp, RoundedCornerShape(16.dp)),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
@@ -134,7 +140,7 @@ fun DashboardTabContent(
                 ) {
                     // Outer glow/background ring
                     CircularProgressIndicator(
-                        progress = { 0.8f },
+                        progress = { streakProgress },
                         modifier = Modifier.fillMaxSize(),
                         color = Color(0xFFF78166).copy(alpha = 0.2f),
                         strokeWidth = 12.dp
@@ -142,7 +148,7 @@ fun DashboardTabContent(
 
                     // Active fire gradient progress circle
                     CircularProgressIndicator(
-                        progress = { 0.8f },
+                        progress = { streakProgress },
                         modifier = Modifier.fillMaxSize(),
                         color = Color(0xFFF78166), // Coral/Orange
                         strokeWidth = 12.dp
@@ -158,7 +164,7 @@ fun DashboardTabContent(
                             fontSize = 32.sp
                         )
                         Text(
-                            text = "12",
+                            text = "$streakDays",
                             fontSize = 44.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color(0xFFF78166),
