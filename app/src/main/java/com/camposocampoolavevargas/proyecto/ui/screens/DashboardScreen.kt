@@ -69,7 +69,18 @@ fun DashboardTabContent(
     val streakData by viewModel.streakData.collectAsState()
     val streakDays = streakData?.currentStreak ?: 0
     val streakProgress = if (streakDays == 0) 0f else (streakDays.toFloat() / 10f).coerceAtMost(1f)
- 
+
+    // Datos temporales
+
+    val promedioMensual = 7.4
+    val metasCumplidas = 8
+    val totalMetas = 10
+
+    val calidadExcelente = 45
+    val calidadBuena = 35
+    val calidadRegular = 15
+    val calidadMala = 5
+
     // Reload active goal and streak data every time this screen becomes active/visible
     LaunchedEffect(Unit) {
         viewModel.loadCurrentGoal()
