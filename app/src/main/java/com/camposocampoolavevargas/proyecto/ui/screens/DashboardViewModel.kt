@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.camposocampoolavevargas.proyecto.util.DateUtils
+import com.camposocampoolavevargas.proyecto.data.local.dao.SleepRecordDao
+
+
 
 /**
  * ViewModel for the Dashboard Screen.
@@ -22,6 +25,7 @@ import com.camposocampoolavevargas.proyecto.util.DateUtils
 class DashboardViewModel @Inject constructor(
     private val weeklyGoalDao: WeeklyGoalDao,
     private val streakDataDao: StreakDataDao,
+    private val sleepRecordDao: SleepRecordDao,
     private val userSession: UserSession
 ) : BaseViewModel() {
 
@@ -31,9 +35,19 @@ class DashboardViewModel @Inject constructor(
     private val _streakData = MutableStateFlow<StreakDataEntity?>(null)
     val streakData: StateFlow<StreakDataEntity?> = _streakData
 
+    private val _averageHours = MutableStateFlow(0.0)
+    val averageHours: StateFlow<Double> = _averageHours
+
+    private val _mostCommonQuality = MutableStateFlow("Sin datos")
+    val mostCommonQuality: StateFlow<String> = _mostCommonQuality
+
+    private val _monthlyGoalsCompleted = MutableStateFlow(0)
+    val monthlyGoalsCompleted: StateFlow<Int> = _monthlyGoalsCompleted
+
     init {
         loadCurrentGoal()
         loadStreakData()
+        loadMonthlyStatistics()
     }
 
     /**
@@ -62,4 +76,40 @@ class DashboardViewModel @Inject constructor(
             }
         }
     }
+    fun loadMonthlyStatistics() {
+        val userId = userSession.getActiveUserId() ?: return
+
+        viewModelScope.launch {
+
+            val records = sleepRecordDao.getRecordsByUserIdDirect(userId)
+
+            if (records.isEmpty()) {
+                _averageHours.value = 0.0
+                _mostCommonQuality.value = "Sin datos"
+                _monthlyGoalsCompleted.value = 0
+                return@launch
+            }
+
+            val durations = records.map {
+                it.durationMinutes / 60.0
+            }
+
+            _averageHours.value = durations.average()
+
+            val qualityMode =
+                records.groupingBy { it.quality.name }
+                    .eachCount()
+                    .maxByOrNull { it.value }
+                    ?.key ?: "Sin datos"
+
+            _mostCommonQuality.value = qualityMode
+
+            _monthlyGoalsCompleted.value =
+                records.count {
+                    (it.durationMinutes / 60.0) >= 7.0
+                }
+        }
+    }
 }
+
+

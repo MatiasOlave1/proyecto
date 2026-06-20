@@ -67,19 +67,12 @@ fun DashboardTabContent(
     val scrollState = rememberScrollState()
     val currentGoal by viewModel.currentGoal.collectAsState()
     val streakData by viewModel.streakData.collectAsState()
+    val averageHours by viewModel.averageHours.collectAsState()
+    val mostCommonQuality by viewModel.mostCommonQuality.collectAsState()
+    val monthlyGoalsCompleted by viewModel.monthlyGoalsCompleted.collectAsState()
     val streakDays = streakData?.currentStreak ?: 0
     val streakProgress = if (streakDays == 0) 0f else (streakDays.toFloat() / 10f).coerceAtMost(1f)
 
-    // Datos temporales
-
-    val promedioMensual = 7.4
-    val metasCumplidas = 8
-    val totalMetas = 10
-
-    val calidadExcelente = 45
-    val calidadBuena = 35
-    val calidadRegular = 15
-    val calidadMala = 5
 
     // Reload active goal and streak data every time this screen becomes active/visible
     LaunchedEffect(Unit) {
@@ -346,7 +339,62 @@ fun DashboardTabContent(
             }
         }
 
-        // --- 4. CARD: JET LAG SOCIAL ALERT ---
+        // --- 4. CARD: DASHBOARD MONTHLY ---
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+
+                Text(
+                    text = "Dashboard Mensual",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Promedio mensual de sueño",
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Text(
+                    text = String.format("%.2f horas", averageHours),
+                    fontSize = 22.sp,
+                    color = Color(0xFFF78166)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Calidad predominante",
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Text(
+                    text = mostCommonQuality
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Metas cumplidas",
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Text(
+                    text = "$monthlyGoalsCompleted noches con 7 o más horas"
+                )
+            }
+        }
+
+        // --- 5. CARD: JET LAG SOCIAL ALERT ---
         Card(
             modifier = Modifier
                 .fillMaxWidth()
