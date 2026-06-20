@@ -23,10 +23,6 @@ import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
 import com.camposocampoolavevargas.proyecto.util.DateUtils
-import com.camposocampoolavevargas.proyecto.data.local.dao.SleepRecordDao
-
-
-
 import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
 
 /**
@@ -37,8 +33,6 @@ import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
 class DashboardViewModel @Inject constructor(
     private val weeklyGoalDao: WeeklyGoalDao,
     private val streakDataDao: StreakDataDao,
-    private val sleepRecordDao: SleepRecordDao,
-    private val userSession: UserSession
     private val circadianAlertDao: CircadianAlertDao,
     private val sleepRecordDao: SleepRecordDao,
     private val userSession: UserSession,
@@ -146,6 +140,8 @@ class DashboardViewModel @Inject constructor(
                 records.count {
                     (it.durationMinutes / 60.0) >= 7.0
                 }
+        }
+    }
 
     /**
      * Listens to active circadian alerts for the active user session and updates the UI flow.

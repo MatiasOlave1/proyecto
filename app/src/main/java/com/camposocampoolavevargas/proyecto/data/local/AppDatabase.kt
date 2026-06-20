@@ -19,6 +19,8 @@ import com.camposocampoolavevargas.proyecto.data.local.entity.SleepRecordEntity
 import com.camposocampoolavevargas.proyecto.data.local.entity.StreakDataEntity
 import com.camposocampoolavevargas.proyecto.data.local.entity.UserEntity
 import com.camposocampoolavevargas.proyecto.data.local.entity.WeeklyGoalEntity
+import com.camposocampoolavevargas.proyecto.relajacion.data.local.entity.SesionRelajacionEntity
+import com.camposocampoolavevargas.proyecto.relajacion.data.local.dao.SesionRelajacionDao
 
 /**
  * Main Room Database configuration for the DormiBienU application.
@@ -32,9 +34,10 @@ import com.camposocampoolavevargas.proyecto.data.local.entity.WeeklyGoalEntity
         StreakDataEntity::class,
         AchievementEntity::class,
         JournalEntryEntity::class,
-        CircadianAlertEntity::class
+        CircadianAlertEntity::class,
+        SesionRelajacionEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -47,6 +50,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun achievementDao(): AchievementDao
     abstract fun journalEntryDao(): JournalEntryDao
     abstract fun circadianAlertDao(): CircadianAlertDao
+    abstract fun sesionRelajacionDao(): SesionRelajacionDao
 
     companion object {
         @Volatile

@@ -1,53 +1,81 @@
-package com.dormibienu.app.relajacion.data.repository
+package com.camposocampoolavevargas.proyecto.relajacion.data.repository
 
-import com.dormibienu.app.relajacion.data.local.dao.SesionRelajacionDao
-import com.dormibienu.app.relajacion.data.local.entity.toDomain
-import com.dormibienu.app.relajacion.data.local.entity.toEntity
-import com.dormibienu.app.relajacion.domain.model.SesionRelajacion
-import kotlinx.coroutines.Dispatchers
+import com.camposocampoolavevargas.proyecto.relajacion.data.local.dao.SesionRelajacionDao
+import com.camposocampoolavevargas.proyecto.relajacion.data.local.entity.SesionRelajacionEntity
+import com.camposocampoolavevargas.proyecto.relajacion.domain.model.SesionRelajacion
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
+import java.time.Instant
 
-/**
- * Interfaz del Repositorio que define las operaciones de negocio admitidas
- * para el módulo de relajación analógica.
- */
-interface RelajacionRepository {
-    suspend fun registrarSesion(sesion: SesionRelajacion)
-    suspend fun actualizarSesion(sesion: SesionRelajacion)
-    suspend fun obtenerSesionPorUuid(uuid: String): SesionRelajacion?
-    fun obtenerSesionesPorUsuario(userId: String): Flow<List<SesionRelajacion>>
-    fun obtenerContadorSesionesCompletadas(userId: String): Flow<Int>
-}
+import javax.inject.Inject
 
-/**
- * Implementación del repositorio enfocada en una estrategia Offline-First rigurosa,
- * utilizando exclusivamente el DAO de Room y garantizando la ejecución en el hilo de I/O.
- */
-class RelajacionRepositoryImpl(
-    private val dao: SesionRelajacionDao
-) : RelajacionRepository {
-
-    override suspend fun registrarSesion(sesion: SesionRelajacion) = withContext(Dispatchers.IO) {
-        dao.insertSesion(sesion.toEntity())
+class RelajacionRepository @Inject constructor(private val dao: SesionRelajacionDao) {
+    
+    suspend fun crearSesion(sesion: SesionRelajacion) {
+        val entity = sesion.toEntity()
+        dao.insertar(entity)
     }
-
-    override suspend fun actualizarSesion(sesion: SesionRelajacion) = withContext(Dispatchers.IO) {
-        dao.updateSesion(sesion.toEntity())
+    
+    suspend fun actualizarSesion(sesion: SesionRelajacion) {
+        val entity = sesion.toEntity()
+        dao.actualizar(entity)
     }
-
-    override suspend fun obtenerSesionPorUuid(uuid: String): SesionRelajacion? = withContext(Dispatchers.IO) {
-        dao.getSesionByUuid(uuid)?.toDomain()
+    
+    suspend fun obtenerSesion(uuid: String): SesionRelajacion? {
+        return dao.obtenerPorUuid(uuid)?.toDomain()
     }
-
-    override fun obtenerSesionesPorUsuario(userId: String): Flow<List<SesionRelajacion>> {
-        return dao.getSesionesByUserId(userId).map { listaEntidades ->
-            listaEntidades.map { entidad -> entidad.toDomain() }
+    
+    fun obtenerSesionesPorUsuario(userId: String): Flow<List<SesionRelajacion>> {
+        return dao.obtenerSesionesPorUsuario(userId).map { entities ->
+            entities.map { it.toDomain() }
         }
     }
-
-    override fun obtenerContadorSesionesCompletadas(userId: String): Flow<Int> {
-        return dao.getContadorSesionesCompletadas(userId)
+    
+    fun obtenerSesionesCompletadas(userId: String): Flow<List<SesionRelajacion>> {
+        return dao.obtenerSesionesCompletadas(userId).map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+    
+    fun obtenerUltimas(userId: String, tipo: String, limit: Int = 10): Flow<List<SesionRelajacion>> {
+        return dao.obtenerUltimas(userId, tipo, limit).map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+    
+    suspend fun contarSesiones(userId: String, tipo: String): Int {
+        return dao.contar(userId, tipo)
+    }
+    
+    suspend fun borrarSesionesPorUsuario(userId: String) {
+        dao.borrarPorUsuario(userId)
+    }
+    
+    private fun SesionRelajacion.toEntity(): SesionRelajacionEntity {
+        return SesionRelajacionEntity(
+            uuid = uuid,
+            userId = userId,
+            tipo = tipo.name,
+            subtipo = subtipo,
+            duracionSegundos = duracionSegundos,
+            completada = completada,
+            audioActivo = audioActivo,
+            iniciadoEn = iniciadoEn.toString(),
+            finalizadoEn = finalizadoEn?.toString()
+        )
+    }
+    
+    private fun SesionRelajacionEntity.toDomain(): SesionRelajacion {
+        return SesionRelajacion(
+            uuid = uuid,
+            userId = userId,
+            tipo = enumValueOf(tipo),
+            subtipo = subtipo,
+            duracionSegundos = duracionSegundos,
+            completada = completada,
+            audioActivo = audioActivo,
+            iniciadoEn = Instant.parse(iniciadoEn),
+            finalizadoEn = finalizadoEn?.let { Instant.parse(it) }
+        )
     }
 }
