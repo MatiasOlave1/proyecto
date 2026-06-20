@@ -15,14 +15,17 @@ import java.util.UUID
 import javax.inject.Inject
 import com.camposocampoolavevargas.proyecto.util.DateUtils
 
+import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
+
 /**
  * ViewModel for setting and loading Weekly Sleep Goals (RF04).
  * Uses active user session and calculates current week of year (ISO 8601).
  */
 @HiltViewModel
 class WeeklyGoalsViewModel @Inject constructor(
-    private val weeklyGoalRepository: WeeklyGoalRepository,
-    private val userSession: UserSession
+    private val weeklyGoalDao: WeeklyGoalDao,
+    private val userSession: UserSession,
+    private val syncRepository: SyncRepository
 ) : BaseViewModel() {
 
     private val _goalState = MutableStateFlow<WeeklyGoalEntity?>(null)
@@ -91,7 +94,7 @@ class WeeklyGoalsViewModel @Inject constructor(
                     updatedAt = System.currentTimeMillis()
                 )
 
-                weeklyGoalRepository.saveGoal(goal)
+                syncRepository.saveWeeklyGoal(goal)
                 _saveState.value = UiState.Success("¡Meta semanal guardada con éxito!")
             } catch (e: Exception) {
                 _saveState.value = UiState.Error(e.localizedMessage ?: "Error al guardar la meta de sueño.")

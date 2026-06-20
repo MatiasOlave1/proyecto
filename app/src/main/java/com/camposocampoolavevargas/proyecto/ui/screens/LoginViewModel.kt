@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
+import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
 
 /**
  * ViewModel for user login (RF01 - simplified).
@@ -20,7 +21,8 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val userDao: UserDao,
-    private val userSession: UserSession
+    private val userSession: UserSession,
+    private val syncRepository: SyncRepository
 ) : BaseViewModel() {
 
     private val _loginState = MutableStateFlow<UiState<String>>(UiState.Success(""))
@@ -51,25 +53,33 @@ class LoginViewModel @Inject constructor(
             }
 
             try {
-                // 2. Fetch user by email or phone
-                val identifier = emailOrPhone.trim().lowercase()
-                val user = userDao.getUserByEmailOrPhone(identifier)
-                if (user == null) {
-                    _loginState.value = UiState.Error("Credenciales inválidas. Usuario no encontrado.")
+                // Try logging in via the REST API
+                val apiResult = syncRepository.login(emailOrPhone, password)
+                if (apiResult.isSuccess) {
+                    _loginState.value = UiState.Success(apiResult.getOrThrow())
                     return@launch
                 }
 
-                // 3. Verify password
-                val inputHash = HashUtils.hashPassword(password)
-                if (user.passwordHash == inputHash) {
-                    // 4. Save session
-                    userSession.login(user.userId)
-                    _loginState.value = UiState.Success(user.userId)
-                } else if (user.passwordHash == "GOOGLE_AUTH_ACCOUNT") {
-                    _loginState.value = UiState.Error("Esta cuenta se registró con Google. Por favor, usa Iniciar Sesión con Google.")
-                } else {
-                    _loginState.value = UiState.Error("Credenciales inválidas. Contraseña incorrecta.")
+                // If API call failed, check if it's a network issue to attempt local database fallback
+                val exception = apiResult.exceptionOrNull()
+                val isNetworkError = exception is java.io.IOException || exception?.cause is java.io.IOException
+                
+                if (isNetworkError) {
+                    val identifier = emailOrPhone.trim().lowercase()
+                    val user = userDao.getUserByEmailOrPhone(identifier)
+                    if (user != null) {
+                        val inputHash = HashUtils.hashPassword(password)
+                        if (user.passwordHash == inputHash) {
+                            userSession.login(user.userId)
+                            _loginState.value = UiState.Success(user.userId)
+                            return@launch
+                        }
+                    }
                 }
+
+                _loginState.value = UiState.Error(
+                    exception?.localizedMessage ?: "Credenciales inválidas. Por favor verifique sus datos."
+                )
             } catch (e: Exception) {
                 _loginState.value = UiState.Error(e.localizedMessage ?: "Ocurrió un error inesperado al iniciar sesión.")
             }
