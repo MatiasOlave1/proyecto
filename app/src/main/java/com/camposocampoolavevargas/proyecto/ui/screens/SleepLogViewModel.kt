@@ -6,9 +6,11 @@ import com.camposocampoolavevargas.proyecto.data.local.UserSession
 import com.camposocampoolavevargas.proyecto.data.local.dao.SleepRecordDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.StreakDataDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.AchievementDao
+import com.camposocampoolavevargas.proyecto.data.local.dao.CircadianAlertDao
 import com.camposocampoolavevargas.proyecto.data.local.entity.SleepRecordEntity
 import com.camposocampoolavevargas.proyecto.data.local.entity.StreakDataEntity
 import com.camposocampoolavevargas.proyecto.data.local.entity.AchievementEntity
+import com.camposocampoolavevargas.proyecto.data.local.entity.CircadianAlertEntity
 import com.camposocampoolavevargas.proyecto.data.local.model.SleepQuality
 import com.camposocampoolavevargas.proyecto.data.local.model.SyncStatus
 import com.camposocampoolavevargas.proyecto.data.local.model.AchievementType
@@ -37,6 +39,7 @@ class SleepLogViewModel @Inject constructor(
     private val sleepRecordDao: SleepRecordDao,
     private val streakDataDao: StreakDataDao,
     private val achievementDao: AchievementDao,
+    private val circadianAlertDao: CircadianAlertDao,
     private val userSession: UserSession,
     private val syncRepository: SyncRepository
 ) : BaseViewModel() {
@@ -138,6 +141,9 @@ class SleepLogViewModel @Inject constructor(
                 )
                 syncRepository.saveSleepRecord(record)
                 updateStreakAfterLog(userId, dateVal)
+                
+                // Evaluate circadian alerts (Social Jet Lag)
+                evaluateCircadianAlerts(userId)
                 
                 // Evaluate and unlock achievements asynchronously
                 evaluateAchievementsAfterLog(userId)
@@ -275,6 +281,67 @@ class SleepLogViewModel @Inject constructor(
                 updatedAt = System.currentTimeMillis()
             )
             syncRepository.saveStreak(updatedStreak)
+        }
+    }
+
+    /**
+     * Evaluates sleep records of the last week (7 days) to detect Social Jet Lag.
+     * If the absolute difference between average weekday wake time and average weekend
+     * wake time is greater than 2 hours, inserts a CircadianAlertEntity.
+     */
+    private suspend fun evaluateCircadianAlerts(userId: String) {
+        try {
+            val allRecords = sleepRecordDao.getRecordsByUserIdDirect(userId)
+            val today = LocalDate.now()
+            val sevenDaysAgo = today.minusDays(7) // Last 7 days
+
+            val recentRecords = allRecords.filter {
+                val recordDate = try { LocalDate.parse(it.date) } catch (e: Exception) { null }
+                recordDate != null && !recordDate.isBefore(sevenDaysAgo)
+            }
+
+            val zoneId = ZoneId.systemDefault()
+            val weekdayWakeTimes = mutableListOf<Float>()
+            val weekendWakeTimes = mutableListOf<Float>()
+
+            for (record in recentRecords) {
+                val recordDate = try { LocalDate.parse(record.date) } catch (e: Exception) { continue }
+                val dayOfWeek = recordDate.dayOfWeek
+                
+                // Get the local time of wakeTime
+                val instant = java.time.Instant.ofEpochMilli(record.wakeTime)
+                val localWakeDateTime = LocalDateTime.ofInstant(instant, zoneId)
+                val decimalHour = localWakeDateTime.hour + (localWakeDateTime.minute / 60.0f)
+
+                if (dayOfWeek == java.time.DayOfWeek.SATURDAY || dayOfWeek == java.time.DayOfWeek.SUNDAY) {
+                    weekendWakeTimes.add(decimalHour)
+                } else {
+                    weekdayWakeTimes.add(decimalHour)
+                }
+            }
+
+            if (weekdayWakeTimes.isNotEmpty() && weekendWakeTimes.isNotEmpty()) {
+                val avgWeekday = weekdayWakeTimes.average().toFloat()
+                val avgWeekend = weekendWakeTimes.average().toFloat()
+                val delta = Math.abs(avgWeekday - avgWeekend)
+
+                if (delta > 2.0f) {
+                    val alert = CircadianAlertEntity(
+                        userId = userId,
+                        deltaHours = delta
+                    )
+                    circadianAlertDao.insertAlert(alert)
+                    
+                    // Trigger a push notification warning the user
+                    NotificationHelper.showAchievementNotification(
+                        context = context,
+                        title = "Ritmo Circadiano Desalineado ⏰",
+                        message = "Detectamos un Jet Lag Social de ${String.format("%.1f", delta)} horas entre semana y fin de semana."
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
