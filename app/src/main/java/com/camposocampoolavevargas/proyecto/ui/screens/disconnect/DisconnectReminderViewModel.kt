@@ -3,15 +3,16 @@ package com.camposocampoolavevargas.proyecto.ui.screens.disconnect
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.camposocampoolavevargas.proyecto.data.local.UserSession
 import com.camposocampoolavevargas.proyecto.data.repository.DisconnectMode
 import com.camposocampoolavevargas.proyecto.data.repository.DisconnectSettingsRepository
 import com.camposocampoolavevargas.proyecto.data.repository.WeeklyGoalRepository
 import com.camposocampoolavevargas.proyecto.service.notification.DisconnectAlarmScheduler
+import com.camposocampoolavevargas.proyecto.util.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -29,7 +30,8 @@ data class DisconnectUiState(
 class DisconnectReminderViewModel @Inject constructor(
     private val settingsRepository: DisconnectSettingsRepository,
     private val weeklyGoalRepository: WeeklyGoalRepository,
-    private val alarmScheduler: DisconnectAlarmScheduler
+    private val alarmScheduler: DisconnectAlarmScheduler,
+    private val userSession: UserSession
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DisconnectUiState())
@@ -57,19 +59,16 @@ class DisconnectReminderViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadWeeklyGoal() {
-        val calendar = Calendar.getInstance()
-        val week = calendar.get(Calendar.WEEK_OF_YEAR)
-        val year = calendar.get(Calendar.YEAR)
+    private fun loadWeeklyGoal() {
+        val (week, year) = DateUtils.getIsoWeekYear()
+        val userId = userSession.getActiveUserId() ?: "user123" 
         
-        // Hardcoded userId for now
-        val userId = "user123" 
-        
-        val goal = weeklyGoalRepository.getCurrentGoal(userId, week, year).firstOrNull()
-        _uiState.update { it.copy(weeklyGoalBedtimeMillis = goal?.bedtimeLimitMillis) }
-        
-        // Initial scheduling based on saved settings
-        rescheduleAlarm()
+        viewModelScope.launch {
+            weeklyGoalRepository.getCurrentGoal(userId, week, year).collect { goal ->
+                _uiState.update { it.copy(weeklyGoalBedtimeMillis = goal?.bedtimeLimitMillis) }
+                rescheduleAlarm()
+            }
+        }
     }
 
     fun onModeChange(newMode: DisconnectMode) {
