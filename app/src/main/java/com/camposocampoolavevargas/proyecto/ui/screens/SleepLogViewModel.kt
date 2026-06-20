@@ -326,16 +326,17 @@ class SleepLogViewModel @Inject constructor(
                     val activeAlert = recentAlerts.find { !it.dismissed }
                     
                     if (activeAlert != null) {
-                        // Update existing active alert instead of inserting a new one
+                        val twelveHoursMs = 12 * 60 * 60 * 1000L
+                        val shouldNotify = System.currentTimeMillis() - activeAlert.generatedAt > twelveHoursMs
+
+                        // Update existing active alert's deltaHours, but only reset generatedAt if we notify
                         val updatedAlert = activeAlert.copy(
                             deltaHours = delta,
-                            generatedAt = System.currentTimeMillis()
+                            generatedAt = if (shouldNotify) System.currentTimeMillis() else activeAlert.generatedAt
                         )
                         circadianAlertDao.insertAlert(updatedAlert)
 
-                        // Only notify if the last notification was more than 12 hours ago
-                        val twelveHoursMs = 12 * 60 * 60 * 1000L
-                        if (System.currentTimeMillis() - activeAlert.generatedAt > twelveHoursMs) {
+                        if (shouldNotify) {
                             NotificationHelper.showAchievementNotification(
                                 context = context,
                                 title = "Ritmo Circadiano Desalineado ⏰",
