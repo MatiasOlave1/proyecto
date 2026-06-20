@@ -24,12 +24,12 @@ import com.camposocampoolavevargas.proyecto.ui.screens.WeeklyGoalsScreen
  * Configured to start at [Screen.Login] and maps all 14 screens.
  */
 @Composable
-fun AppNavigation() {
+fun AppNavigation(startDestination: String? = null) {
     val navController = rememberNavController()
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Login.route
+        startDestination = startDestination ?: Screen.Login.route
     ) {
         // Auth
         composable(Screen.Login.route) { LoginScreen(navController) }

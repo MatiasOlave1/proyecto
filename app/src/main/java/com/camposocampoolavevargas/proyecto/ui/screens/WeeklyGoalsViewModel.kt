@@ -2,8 +2,8 @@ package com.camposocampoolavevargas.proyecto.ui.screens
 
 import androidx.lifecycle.viewModelScope
 import com.camposocampoolavevargas.proyecto.data.local.UserSession
-import com.camposocampoolavevargas.proyecto.data.local.dao.WeeklyGoalDao
 import com.camposocampoolavevargas.proyecto.data.local.entity.WeeklyGoalEntity
+import com.camposocampoolavevargas.proyecto.data.repository.WeeklyGoalRepository
 import com.camposocampoolavevargas.proyecto.ui.BaseViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,7 +47,7 @@ class WeeklyGoalsViewModel @Inject constructor(
         val (isoWeek, isoYear) = DateUtils.getIsoWeekYear()
 
         viewModelScope.launch {
-            weeklyGoalDao.getCurrentGoal(userId, isoWeek, isoYear).collect { goal ->
+            weeklyGoalRepository.getCurrentGoal(userId, isoWeek, isoYear).collect { goal ->
                 _goalState.value = goal
             }
         }

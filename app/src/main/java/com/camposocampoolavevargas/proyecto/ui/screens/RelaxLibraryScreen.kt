@@ -44,6 +44,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.camposocampoolavevargas.proyecto.navigation.Screen
@@ -55,8 +59,17 @@ import kotlin.math.sin
  * Main content for the Noche (Wellness/Sleep preparation) tab.
  */
 @Composable
-fun NocheTabContent(navController: NavController) {
+fun NocheTabContent(
+    navController: NavController,
+    viewModel: RelaxLibraryViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+
+    // Reload settings whenever this screen becomes active to reflect changes from DisconnectReminderScreen
+    LaunchedEffect(Unit) {
+        viewModel.loadSettings()
+    }
 
     Column(
         modifier = Modifier
@@ -308,13 +321,13 @@ fun NocheTabContent(navController: NavController) {
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left 60 minutes layout
+                    // Left offset minutes layout
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = "60",
+                            text = uiState.reminderOffsetMinutes.toString(),
                             fontSize = 44.sp,
                             fontWeight = FontWeight.Black,
                             color = Color(0xFFF78166),
@@ -454,7 +467,10 @@ fun androidx.compose.ui.graphics.drawscope.DrawScope.drawStrokeLine(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RelaxLibraryScreen(navController: NavController) {
+fun RelaxLibraryScreen(
+    navController: NavController,
+    viewModel: RelaxLibraryViewModel = hiltViewModel()
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -467,7 +483,7 @@ fun RelaxLibraryScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            NocheTabContent(navController)
+            NocheTabContent(navController, viewModel)
         }
     }
 }

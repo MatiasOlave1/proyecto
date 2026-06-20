@@ -1,4 +1,4 @@
-#!/bin/sh
+1#!/bin/sh
 
 #
 # Copyright © 2015 the original authors.
