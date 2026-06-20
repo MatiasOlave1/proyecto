@@ -12,6 +12,7 @@ import com.camposocampoolavevargas.proyecto.data.local.entity.CircadianAlertEnti
 import com.camposocampoolavevargas.proyecto.data.local.entity.SleepRecordEntity
 import com.camposocampoolavevargas.proyecto.ui.BaseViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -51,6 +52,11 @@ class DashboardViewModel @Inject constructor(
     private val _recentSleepRecords = MutableStateFlow<List<SleepRecordEntity>>(emptyList())
     val recentSleepRecords: StateFlow<List<SleepRecordEntity>> = _recentSleepRecords
 
+    private var currentGoalJob: Job? = null
+    private var streakDataJob: Job? = null
+    private var circadianAlertsJob: Job? = null
+    private var recentSleepRecordsJob: Job? = null
+
     init {
         loadCurrentGoal()
         loadStreakData()
@@ -74,7 +80,8 @@ class DashboardViewModel @Inject constructor(
         
         val (isoWeek, isoYear) = DateUtils.getIsoWeekYear()
 
-        viewModelScope.launch {
+        currentGoalJob?.cancel()
+        currentGoalJob = viewModelScope.launch {
             weeklyGoalDao.getCurrentGoal(userId, isoWeek, isoYear).collect { goal ->
                 _currentGoal.value = goal
             }
@@ -86,7 +93,8 @@ class DashboardViewModel @Inject constructor(
      */
     fun loadStreakData() {
         val userId = userSession.getActiveUserId() ?: return
-        viewModelScope.launch {
+        streakDataJob?.cancel()
+        streakDataJob = viewModelScope.launch {
             streakDataDao.getStreakByUser(userId).collect { streak ->
                 _streakData.value = streak
             }
@@ -98,7 +106,8 @@ class DashboardViewModel @Inject constructor(
      */
     fun loadCircadianAlerts() {
         val userId = userSession.getActiveUserId() ?: return
-        viewModelScope.launch {
+        circadianAlertsJob?.cancel()
+        circadianAlertsJob = viewModelScope.launch {
             circadianAlertDao.getActiveAlerts(userId).collect { alerts ->
                 _circadianAlerts.value = alerts
             }
@@ -112,7 +121,8 @@ class DashboardViewModel @Inject constructor(
         val userId = userSession.getActiveUserId() ?: return
         val today = LocalDate.now().toString()
         val sevenDaysAgo = LocalDate.now().minusDays(6).toString()
-        viewModelScope.launch {
+        recentSleepRecordsJob?.cancel()
+        recentSleepRecordsJob = viewModelScope.launch {
             sleepRecordDao.getRecordsByDateRange(userId, sevenDaysAgo, today).collect { records ->
                 _recentSleepRecords.value = records
             }

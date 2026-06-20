@@ -14,6 +14,8 @@ import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 import com.camposocampoolavevargas.proyecto.util.DateUtils
+import com.camposocampoolavevargas.proyecto.data.local.dao.WeeklyGoalDao
+import kotlinx.coroutines.Job
 
 import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
 
@@ -34,6 +36,8 @@ class WeeklyGoalsViewModel @Inject constructor(
     private val _saveState = MutableStateFlow<UiState<String>>(UiState.Success(""))
     val saveState: StateFlow<UiState<String>> = _saveState
 
+    private var loadGoalJob: Job? = null
+
     init {
         loadCurrentGoal()
     }
@@ -46,8 +50,9 @@ class WeeklyGoalsViewModel @Inject constructor(
         
         val (isoWeek, isoYear) = DateUtils.getIsoWeekYear()
 
-        viewModelScope.launch {
-            weeklyGoalRepository.getCurrentGoal(userId, isoWeek, isoYear).collect { goal ->
+        loadGoalJob?.cancel()
+        loadGoalJob = viewModelScope.launch {
+            weeklyGoalDao.getCurrentGoal(userId, isoWeek, isoYear).collect { goal ->
                 _goalState.value = goal
             }
         }

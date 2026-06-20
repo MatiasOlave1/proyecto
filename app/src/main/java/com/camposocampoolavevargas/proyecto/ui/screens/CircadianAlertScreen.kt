@@ -37,14 +37,26 @@ import java.util.Locale
  * Screen for Circadian Alerts (RF13 — Alertas circadianas).
  * Shows active warnings regarding Social Jet Lag.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CircadianAlertScreen(
     navController: NavController,
     viewModel: CircadianAlertViewModel = hiltViewModel()
 ) {
     val alerts by viewModel.alerts.collectAsState()
+    CircadianAlertContent(
+        alerts = alerts,
+        onBackClick = { navController.popBackStack() },
+        onDismissAlert = { alertId -> viewModel.dismissAlert(alertId) }
+    )
+}
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CircadianAlertContent(
+    alerts: List<CircadianAlertEntity>,
+    onBackClick: () -> Unit,
+    onDismissAlert: (String) -> Unit
+) {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -54,7 +66,7 @@ fun CircadianAlertScreen(
                 TopAppBar(
                     title = { Text(text = "Alertas Circadianas") },
                     navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
+                        IconButton(onClick = onBackClick) {
                             Icon(
                                 imageVector = Icons.Default.ArrowBack,
                                 contentDescription = "Volver"
@@ -118,7 +130,7 @@ fun CircadianAlertScreen(
                         items(alerts, key = { it.alertId }) { alert ->
                             CircadianAlertCard(
                                 alert = alert,
-                                onDismiss = { viewModel.dismissAlert(alert.alertId) }
+                                onDismiss = { onDismissAlert(alert.alertId) }
                             )
                         }
                     }
@@ -204,6 +216,17 @@ fun CircadianAlertCard(
 @Composable
 fun CircadianAlertScreenPreview() {
     DormiBienUTheme {
-        CircadianAlertScreen(navController = rememberNavController())
+        CircadianAlertContent(
+            alerts = listOf(
+                CircadianAlertEntity(
+                    alertId = "1",
+                    userId = "user123",
+                    deltaHours = 2.5f,
+                    generatedAt = System.currentTimeMillis()
+                )
+            ),
+            onBackClick = {},
+            onDismissAlert = {}
+        )
     }
 }

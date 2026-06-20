@@ -284,16 +284,11 @@ class SleepLogViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Evaluates sleep records of the last week (7 days) to detect Social Jet Lag.
-     * If the absolute difference between average weekday wake time and average weekend
-     * wake time is greater than 2 hours, inserts a CircadianAlertEntity.
-     */
     private suspend fun evaluateCircadianAlerts(userId: String) {
         try {
             val allRecords = sleepRecordDao.getRecordsByUserIdDirect(userId)
             val today = LocalDate.now()
-            val sevenDaysAgo = today.minusDays(7) // Last 7 days
+            val sevenDaysAgo = today.minusDays(6) // Last 7 days (today + 6 previous days)
 
             val recentRecords = allRecords.filter {
                 val recordDate = try { LocalDate.parse(it.date) } catch (e: Exception) { null }
@@ -326,18 +321,42 @@ class SleepLogViewModel @Inject constructor(
                 val delta = Math.abs(avgWeekday - avgWeekend)
 
                 if (delta > 2.0f) {
-                    val alert = CircadianAlertEntity(
-                        userId = userId,
-                        deltaHours = delta
-                    )
-                    circadianAlertDao.insertAlert(alert)
+                    // Check if there is already an active alert for the user to avoid duplication
+                    val recentAlerts = circadianAlertDao.getRecentAlerts(userId, 5)
+                    val activeAlert = recentAlerts.find { !it.dismissed }
                     
-                    // Trigger a push notification warning the user
-                    NotificationHelper.showAchievementNotification(
-                        context = context,
-                        title = "Ritmo Circadiano Desalineado ⏰",
-                        message = "Detectamos un Jet Lag Social de ${String.format("%.1f", delta)} horas entre semana y fin de semana."
-                    )
+                    if (activeAlert != null) {
+                        // Update existing active alert instead of inserting a new one
+                        val updatedAlert = activeAlert.copy(
+                            deltaHours = delta,
+                            generatedAt = System.currentTimeMillis()
+                        )
+                        circadianAlertDao.insertAlert(updatedAlert)
+
+                        // Only notify if the last notification was more than 12 hours ago
+                        val twelveHoursMs = 12 * 60 * 60 * 1000L
+                        if (System.currentTimeMillis() - activeAlert.generatedAt > twelveHoursMs) {
+                            NotificationHelper.showAchievementNotification(
+                                context = context,
+                                title = "Ritmo Circadiano Desalineado ⏰",
+                                message = "Detectamos un Jet Lag Social de ${String.format("%.1f", delta)} horas entre semana y fin de semana."
+                            )
+                        }
+                    } else {
+                        // Insert a new alert
+                        val alert = CircadianAlertEntity(
+                            userId = userId,
+                            deltaHours = delta
+                        )
+                        circadianAlertDao.insertAlert(alert)
+                        
+                        // Trigger a push notification warning the user
+                        NotificationHelper.showAchievementNotification(
+                            context = context,
+                            title = "Ritmo Circadiano Desalineado ⏰",
+                            message = "Detectamos un Jet Lag Social de ${String.format("%.1f", delta)} horas entre semana y fin de semana."
+                        )
+                    }
                 }
             }
         } catch (e: Exception) {
