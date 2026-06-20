@@ -21,6 +21,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
+import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
+
 /**
  * ViewModel for Achievements tab (RF08).
  * Manages achievement loading, DB seeding, and combines data with active user streaks.
@@ -30,7 +32,8 @@ class AchievementsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val achievementDao: AchievementDao,
     private val streakDataDao: StreakDataDao,
-    private val userSession: UserSession
+    private val userSession: UserSession,
+    private val syncRepository: SyncRepository
 ) : BaseViewModel() {
 
     private val _userId = userSession.getActiveUserId() ?: ""
@@ -155,12 +158,15 @@ class AchievementsViewModel @Inject constructor(
                     val newPoints = currentPoints + 10
 
                     // Unlock/update achievement
-                    achievementDao.unlockAchievement(
+                    val achievement = AchievementEntity(
+                        achievementId = egg?.achievementId ?: java.util.UUID.randomUUID().toString(),
                         userId = _userId,
                         type = AchievementType.EASTER_EGG,
+                        unlocked = true,
                         unlockedAt = System.currentTimeMillis(),
                         points = newPoints
                     )
+                    syncRepository.saveAchievement(achievement)
 
                     // Trigger push notification
                     val claimsCount = newPoints / 10
