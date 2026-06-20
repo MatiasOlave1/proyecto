@@ -14,6 +14,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.camposocampoolavevargas.proyecto.util.DateUtils
 
+import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
+
 /**
  * ViewModel for the Dashboard Screen.
  * Provides active sleep goal metrics for the home dashboard widgets.
@@ -22,7 +24,8 @@ import com.camposocampoolavevargas.proyecto.util.DateUtils
 class DashboardViewModel @Inject constructor(
     private val weeklyGoalDao: WeeklyGoalDao,
     private val streakDataDao: StreakDataDao,
-    private val userSession: UserSession
+    private val userSession: UserSession,
+    private val syncRepository: SyncRepository
 ) : BaseViewModel() {
 
     private val _currentGoal = MutableStateFlow<WeeklyGoalEntity?>(null)
@@ -34,6 +37,14 @@ class DashboardViewModel @Inject constructor(
     init {
         loadCurrentGoal()
         loadStreakData()
+        triggerSync()
+    }
+
+    private fun triggerSync() {
+        val userId = userSession.getActiveUserId() ?: return
+        viewModelScope.launch {
+            syncRepository.syncAll(userId)
+        }
     }
 
     /**

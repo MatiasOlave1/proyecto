@@ -17,6 +17,7 @@ class UserSession @Inject constructor(
 
     companion object {
         private const val KEY_ACTIVE_USER_ID = "active_user_id"
+        private const val KEY_AUTH_TOKEN = "auth_token"
     }
 
     /**
@@ -27,10 +28,27 @@ class UserSession @Inject constructor(
     }
 
     /**
+     * Stores the authentication token.
+     */
+    fun saveToken(token: String) {
+        sharedPreferences.edit().putString(KEY_AUTH_TOKEN, token).apply()
+    }
+
+    /**
+     * Returns the stored authentication token.
+     */
+    fun getToken(): String? {
+        return sharedPreferences.getString(KEY_AUTH_TOKEN, null)
+    }
+
+    /**
      * Clears the session.
      */
     fun logout() {
-        sharedPreferences.edit().remove(KEY_ACTIVE_USER_ID).apply()
+        sharedPreferences.edit()
+            .remove(KEY_ACTIVE_USER_ID)
+            .remove(KEY_AUTH_TOKEN)
+            .apply()
     }
 
     /**
