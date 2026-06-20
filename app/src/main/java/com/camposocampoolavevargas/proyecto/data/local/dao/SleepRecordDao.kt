@@ -26,11 +26,17 @@ interface SleepRecordDao {
     @Query("SELECT * FROM sleep_records WHERE userId = :userId ORDER BY date DESC")
     fun getRecordsByUserId(userId: String): Flow<List<SleepRecordEntity>>
 
+    @Query("SELECT * FROM sleep_records WHERE userId = :userId ORDER BY date DESC")
+    suspend fun getRecordsByUserIdDirect(userId: String): List<SleepRecordEntity>
+
     @Query("SELECT * FROM sleep_records WHERE userId = :userId AND date BETWEEN :startDate AND :endDate ORDER BY date ASC")
     fun getRecordsByDateRange(userId: String, startDate: String, endDate: String): Flow<List<SleepRecordEntity>>
 
     @Query("SELECT * FROM sleep_records WHERE userId = :userId AND date = :date LIMIT 1")
     fun getRecordByDate(userId: String, date: String): Flow<SleepRecordEntity?>
+
+    @Query("SELECT * FROM sleep_records WHERE userId = :userId AND date = :date LIMIT 1")
+    suspend fun getRecordByDateDirect(userId: String, date: String): SleepRecordEntity?
 
     @Query("SELECT * FROM sleep_records WHERE userId = :userId AND syncStatus = 'PENDING'")
     suspend fun getPendingSyncRecords(userId: String): List<SleepRecordEntity>

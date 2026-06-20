@@ -34,7 +34,7 @@ import com.camposocampoolavevargas.proyecto.data.local.entity.WeeklyGoalEntity
         JournalEntryEntity::class,
         CircadianAlertEntity::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -62,18 +62,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "dormibienU_database"
                 )
-                // Future Migration Strategy:
-                // To modify the database schema in subsequent app updates without losing existing user data:
-                // 1. Increment the version number in the @Database annotation (e.g. version = 2).
-                // 2. Define a Migration object implementing the changes:
-                //    val MIGRATION_1_2 = object : Migration(1, 2) {
-                //        override fun migrate(db: SupportSQLiteDatabase) {
-                //            // Example: db.execSQL("ALTER TABLE users ADD COLUMN age INTEGER DEFAULT 0 NOT NULL")
-                //        }
-                //    }
-                // 3. Register the migration object on this database builder:
-                //    .addMigrations(MIGRATION_1_2)
-                // 4. In cases where data loss is acceptable during dev, .fallbackToDestructiveMigration() can be used temporarily.
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance

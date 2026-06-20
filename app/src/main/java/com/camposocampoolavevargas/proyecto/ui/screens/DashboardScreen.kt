@@ -3,6 +3,7 @@ package com.camposocampoolavevargas.proyecto.ui.screens
 import android.content.res.Configuration.UI_MODE_NIGHT_YES
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import java.util.Locale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,8 +60,21 @@ import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
  * Main scrollable content for the Dashboard tab.
  */
 @Composable
-fun DashboardTabContent(navController: NavController) {
+fun DashboardTabContent(
+    navController: NavController,
+    viewModel: DashboardViewModel = hiltViewModel()
+) {
     val scrollState = rememberScrollState()
+    val currentGoal by viewModel.currentGoal.collectAsState()
+    val streakData by viewModel.streakData.collectAsState()
+    val streakDays = streakData?.currentStreak ?: 0
+    val streakProgress = if (streakDays == 0) 0f else (streakDays.toFloat() / 10f).coerceAtMost(1f)
+ 
+    // Reload active goal and streak data every time this screen becomes active/visible
+    LaunchedEffect(Unit) {
+        viewModel.loadCurrentGoal()
+        viewModel.loadStreakData()
+    }
 
     Column(
         modifier = Modifier
@@ -69,6 +88,7 @@ fun DashboardTabContent(navController: NavController) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable { navController.navigate(Screen.Streaks.route) }
                 .shadow(8.dp, RoundedCornerShape(16.dp)),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
@@ -120,7 +140,7 @@ fun DashboardTabContent(navController: NavController) {
                 ) {
                     // Outer glow/background ring
                     CircularProgressIndicator(
-                        progress = { 0.8f },
+                        progress = { streakProgress },
                         modifier = Modifier.fillMaxSize(),
                         color = Color(0xFFF78166).copy(alpha = 0.2f),
                         strokeWidth = 12.dp
@@ -128,7 +148,7 @@ fun DashboardTabContent(navController: NavController) {
 
                     // Active fire gradient progress circle
                     CircularProgressIndicator(
-                        progress = { 0.8f },
+                        progress = { streakProgress },
                         modifier = Modifier.fillMaxSize(),
                         color = Color(0xFFF78166), // Coral/Orange
                         strokeWidth = 12.dp
@@ -144,7 +164,7 @@ fun DashboardTabContent(navController: NavController) {
                             fontSize = 32.sp
                         )
                         Text(
-                            text = "12",
+                            text = "$streakDays",
                             fontSize = 44.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color(0xFFF78166),
@@ -222,7 +242,100 @@ fun DashboardTabContent(navController: NavController) {
             }
         }
 
-        // --- 3. CARD: JET LAG SOCIAL ALERT ---
+        // --- 3. CARD: WEEKLY GOALS CONFIGURATION ---
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (currentGoal != null) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                }
+            ),
+            border = if (currentGoal != null) {
+                androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF78166).copy(alpha = 0.4f))
+            } else null
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp)
+            ) {
+                Text(
+                    text = if (currentGoal != null) "Meta de Sueño Activa" else "Metas Semanales de Sueño",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (currentGoal != null) Color(0xFFF78166) else MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                if (currentGoal != null) {
+                    val goalVal = currentGoal!!
+                    val bedtimeHour = (goalVal.bedtimeLimitMillis / (1000 * 60 * 60)).toInt()
+                    val bedtimeMinute = ((goalVal.bedtimeLimitMillis % (1000 * 60 * 60)) / (1000 * 60)).toInt()
+                    val bedtimeLabel = String.format(Locale.getDefault(), "%02d:%02d", bedtimeHour, bedtimeMinute)
+                    
+                    Text(
+                        text = "Objetivo semanal configurado para mejorar tu ritmo circadiano:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            Text("Dormir Mínimo", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${String.format(Locale.getDefault(), "%.1f", goalVal.minHours)} horas", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                        Column {
+                            Text("Días Requeridos", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${goalVal.requiredDays} días", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                        Column {
+                            Text("Hora Límite", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(bedtimeLabel, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "Configura tus objetivos de sueño (horas mínimas, días consecutivos y hora límite) para activar la gamificación.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Button(
+                    onClick = { navController.navigate(Screen.WeeklyGoals.route) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFF78166), // Use custom coral/orange theme color
+                        contentColor = Color.White
+                    )
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (currentGoal != null) "Editar Meta de la Semana" else "Configurar Metas de la Semana",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowRight,
+                            contentDescription = "Flecha"
+                        )
+                    }
+                }
+            }
+        }
+
+        // --- 4. CARD: JET LAG SOCIAL ALERT ---
         Card(
             modifier = Modifier
                 .fillMaxWidth()

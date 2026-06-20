@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -25,15 +26,25 @@ private val DarkColorScheme = darkColorScheme(
     outline = Outline
 )
 
-/**
- * Custom Material Design 3 theme for DormiBienU.
- * Forces dark mode colors always, ignoring system settings.
- */
+private val DormiBienUScheme = darkColorScheme(
+    primary = PrimaryOrange,
+    secondary = SecondaryOrange,
+
+    background = DarkBackground,
+    surface = CardBackground,
+
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+
+    onBackground = TextWhite,
+    onSurface = TextWhite
+)
+
 @Composable
 fun DormiBienUTheme(
     content: @Composable () -> Unit
 ) {
-    val colorScheme = DarkColorScheme
+    val colorScheme = DormiBienUScheme
     val view = LocalView.current
 
     if (!view.isInEditMode) {
@@ -48,11 +59,9 @@ fun DormiBienUTheme(
             }
         }
     }
-
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
         content = content
     )
 }
-
