@@ -26,6 +26,7 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
+import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
 import javax.inject.Inject
 
 /**
@@ -39,7 +40,8 @@ class SleepLogViewModel @Inject constructor(
     private val streakDataDao: StreakDataDao,
     private val achievementDao: AchievementDao,
     private val circadianAlertDao: CircadianAlertDao,
-    private val userSession: UserSession
+    private val userSession: UserSession,
+    private val syncRepository: SyncRepository
 ) : BaseViewModel() {
 
     private val _selectedDate = MutableStateFlow(LocalDate.now().minusDays(1))
@@ -137,7 +139,7 @@ class SleepLogViewModel @Inject constructor(
                     date = dateVal.toString(), // YYYY-MM-DD
                     syncStatus = SyncStatus.PENDING
                 )
-                sleepRecordDao.insertRecord(record)
+                syncRepository.saveSleepRecord(record)
                 updateStreakAfterLog(userId, dateVal)
                 
                 // Evaluate circadian alerts (Social Jet Lag)
@@ -175,15 +177,14 @@ class SleepLogViewModel @Inject constructor(
                             AchievementType.EASTER_EGG -> 0
                         }
                         // Insert/update achievement in database
-                        achievementDao.insertAchievement(
-                            AchievementEntity(
-                                userId = userId,
-                                type = type,
-                                unlocked = false,
-                                points = points
-                            )
+                        val achievement = AchievementEntity(
+                            userId = userId,
+                            type = type,
+                            unlocked = true,
+                            unlockedAt = System.currentTimeMillis(),
+                            points = points
                         )
-                        achievementDao.unlockAchievement(userId, type, System.currentTimeMillis(), points)
+                        syncRepository.saveAchievement(achievement)
 
                         // Trigger push notification
                         NotificationHelper.showAchievementNotification(
@@ -270,7 +271,7 @@ class SleepLogViewModel @Inject constructor(
                 maxStreak = calculatedStreak,
                 lastUpdatedDate = dateString
             )
-            streakDataDao.insertOrUpdateStreak(newStreak)
+            syncRepository.saveStreak(newStreak)
         } else {
             val newMax = maxOf(calculatedStreak, currentStreakData.maxStreak)
             val updatedStreak = currentStreakData.copy(
@@ -279,7 +280,7 @@ class SleepLogViewModel @Inject constructor(
                 lastUpdatedDate = dateString,
                 updatedAt = System.currentTimeMillis()
             )
-            streakDataDao.insertOrUpdateStreak(updatedStreak)
+            syncRepository.saveStreak(updatedStreak)
         }
     }
 

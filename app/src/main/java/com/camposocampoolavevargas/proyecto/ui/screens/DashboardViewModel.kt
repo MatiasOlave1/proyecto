@@ -23,6 +23,8 @@ import java.util.UUID
 import javax.inject.Inject
 import com.camposocampoolavevargas.proyecto.util.DateUtils
 
+import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
+
 /**
  * ViewModel for the Dashboard Screen.
  * Provides active sleep goal metrics, circadian alerts, and recent sleep records for the home dashboard widgets.
@@ -33,7 +35,8 @@ class DashboardViewModel @Inject constructor(
     private val streakDataDao: StreakDataDao,
     private val circadianAlertDao: CircadianAlertDao,
     private val sleepRecordDao: SleepRecordDao,
-    private val userSession: UserSession
+    private val userSession: UserSession,
+    private val syncRepository: SyncRepository
 ) : BaseViewModel() {
 
     private val _currentGoal = MutableStateFlow<WeeklyGoalEntity?>(null)
@@ -53,6 +56,14 @@ class DashboardViewModel @Inject constructor(
         loadStreakData()
         loadCircadianAlerts()
         loadRecentSleepRecords()
+        triggerSync()
+    }
+
+    private fun triggerSync() {
+        val userId = userSession.getActiveUserId() ?: return
+        viewModelScope.launch {
+            syncRepository.syncAll(userId)
+        }
     }
 
     /**

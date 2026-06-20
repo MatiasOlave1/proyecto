@@ -23,6 +23,12 @@ interface AchievementDao {
     @Query("SELECT * FROM achievements WHERE userId = :userId")
     fun getAchievementsByUser(userId: String): Flow<List<AchievementEntity>>
 
+    @Query("SELECT * FROM achievements WHERE userId = :userId")
+    suspend fun getAchievementsByUserIdDirect(userId: String): List<AchievementEntity>
+
+    @Query("SELECT * FROM achievements WHERE userId = :userId AND type = :type LIMIT 1")
+    suspend fun getAchievementByTypeDirect(userId: String, type: AchievementType): AchievementEntity?
+
     @Query("SELECT * FROM achievements WHERE userId = :userId AND unlocked = 1")
     fun getUnlockedAchievements(userId: String): Flow<List<AchievementEntity>>
 
