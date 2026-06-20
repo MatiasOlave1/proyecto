@@ -34,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -41,6 +42,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -80,7 +83,8 @@ fun WeeklyGoalsScreen(
     val context = LocalContext.current
 
     var minHours by remember { mutableStateOf(8.0f) }
-    var requiredDays by remember { mutableStateOf(5) }
+    var requiredDays by remember { mutableStateOf(7) }
+    var customDaysText by remember { mutableStateOf("") }
     var bedtimeHour by remember { mutableStateOf(23) }
     var bedtimeMinute by remember { mutableStateOf(0) }
     
@@ -92,6 +96,7 @@ fun WeeklyGoalsScreen(
         goal?.let {
             minHours = it.minHours
             requiredDays = it.requiredDays
+            customDaysText = it.requiredDays.toString()
             
             val millis = it.bedtimeLimitMillis
             bedtimeHour = (millis / (1000 * 60 * 60)).toInt()
@@ -315,43 +320,78 @@ fun WeeklyGoalsScreen(
                                 )
                             }
 
-                            // 2. Required Days Selector (Responsive weight layout)
+                            // 2. Required Days Selector (Customizable Duration options: 1, 7, 12, 30, 90, 365 days)
                             Column {
                                 Text(
-                                    text = "Días requeridos en la semana",
+                                    text = "Duración / Días requeridos para la meta",
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    (1..7).forEach { day ->
-                                        val isSelected = requiredDays == day
-                                        Box(
-                                            contentAlignment = Alignment.Center,
-                                            modifier = Modifier
-                                                .weight(1f) // Distributes space evenly across all screens
-                                                .aspectRatio(1f) // Keeps circles perfectly round
-                                                .background(
-                                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                                                    shape = CircleShape
-                                                )
-                                                .border(
-                                                    width = 1.dp,
-                                                    color = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outline,
-                                                    shape = CircleShape
-                                                )
-                                                .clickable { requiredDays = day }
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    val rows = listOf(
+                                        listOf(1, 7, 12),
+                                        listOf(30, 90, 365)
+                                    )
+                                    val labels = listOf(
+                                        listOf("1 día", "7 días", "12 días"),
+                                        listOf("30 días", "90 días", "1 año")
+                                    )
+                                    
+                                    rows.forEachIndexed { rowIndex, rowItems ->
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Text(
-                                                text = day.toString(),
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                                                fontSize = 14.sp
-                                            )
+                                            rowItems.forEachIndexed { colIndex, dayVal ->
+                                                val isSelected = requiredDays == dayVal
+                                                Box(
+                                                    contentAlignment = Alignment.Center,
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .height(44.dp)
+                                                        .background(
+                                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                                                            shape = RoundedCornerShape(8.dp)
+                                                        )
+                                                        .border(
+                                                            width = 1.dp,
+                                                            color = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outline,
+                                                            shape = RoundedCornerShape(8.dp)
+                                                        )
+                                                        .clickable { 
+                                                            requiredDays = dayVal
+                                                            customDaysText = dayVal.toString()
+                                                        }
+                                                ) {
+                                                    Text(
+                                                        text = labels[rowIndex][colIndex],
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                                        fontSize = 13.sp
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    // Input for arbitrary days
+                                    OutlinedTextField(
+                                        value = customDaysText,
+                                        onValueChange = { input ->
+                                            val filtered = input.filter { it.isDigit() }
+                                            customDaysText = filtered
+                                            val parsed = filtered.toIntOrNull()
+                                            if (parsed != null) {
+                                                requiredDays = parsed.coerceIn(1, 365)
+                                            }
+                                        },
+                                        label = { Text("O ingresar días personalizados (1-365)") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                    )
                                 }
                             }
 

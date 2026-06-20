@@ -2,8 +2,8 @@ package com.camposocampoolavevargas.proyecto.ui.screens
 
 import androidx.lifecycle.viewModelScope
 import com.camposocampoolavevargas.proyecto.data.local.UserSession
-import com.camposocampoolavevargas.proyecto.data.local.dao.WeeklyGoalDao
 import com.camposocampoolavevargas.proyecto.data.local.entity.WeeklyGoalEntity
+import com.camposocampoolavevargas.proyecto.data.repository.WeeklyGoalRepository
 import com.camposocampoolavevargas.proyecto.ui.BaseViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +15,8 @@ import java.util.UUID
 import javax.inject.Inject
 import com.camposocampoolavevargas.proyecto.util.DateUtils
 
+import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
+
 /**
  * ViewModel for setting and loading Weekly Sleep Goals (RF04).
  * Uses active user session and calculates current week of year (ISO 8601).
@@ -22,7 +24,8 @@ import com.camposocampoolavevargas.proyecto.util.DateUtils
 @HiltViewModel
 class WeeklyGoalsViewModel @Inject constructor(
     private val weeklyGoalDao: WeeklyGoalDao,
-    private val userSession: UserSession
+    private val userSession: UserSession,
+    private val syncRepository: SyncRepository
 ) : BaseViewModel() {
 
     private val _goalState = MutableStateFlow<WeeklyGoalEntity?>(null)
@@ -44,7 +47,7 @@ class WeeklyGoalsViewModel @Inject constructor(
         val (isoWeek, isoYear) = DateUtils.getIsoWeekYear()
 
         viewModelScope.launch {
-            weeklyGoalDao.getCurrentGoal(userId, isoWeek, isoYear).collect { goal ->
+            weeklyGoalRepository.getCurrentGoal(userId, isoWeek, isoYear).collect { goal ->
                 _goalState.value = goal
             }
         }
@@ -91,7 +94,7 @@ class WeeklyGoalsViewModel @Inject constructor(
                     updatedAt = System.currentTimeMillis()
                 )
 
-                weeklyGoalDao.insertGoal(goal)
+                syncRepository.saveWeeklyGoal(goal)
                 _saveState.value = UiState.Success("¡Meta semanal guardada con éxito!")
             } catch (e: Exception) {
                 _saveState.value = UiState.Error(e.localizedMessage ?: "Error al guardar la meta de sueño.")
