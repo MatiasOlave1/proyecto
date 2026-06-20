@@ -203,11 +203,11 @@ fun HistorialTabContent(
                 val horasDormidas = registro.durationMinutes / 60.0
 
                 val colorCalidad = when (registro.quality.name) {
-                    "EXCELLENT" -> Color(0xFF3FB950)
-                    "GOOD" -> Color(0xFF3FB950)
+                    "EXCELENTE" -> Color(0xFF3FB950)
+                    "BUENO" -> Color(0xFF3FB950)
                     "REGULAR" -> Color(0xFFE3B341)
-                    "BAD" -> Color.Red
-                    "VERY_BAD" -> Color.Red
+                    "MALO" -> Color.Red
+                    "MUY MALO" -> Color.Red
                     else -> Color.Gray
                 }
 
