@@ -86,7 +86,8 @@ class RegisterViewModel @Inject constructor(
                 )
 
                 if (apiResult.isSuccess) {
-                    _registerState.value = UiState.Success(userId)
+                    val serverUserId = apiResult.getOrThrow()
+                    _registerState.value = UiState.Success(serverUserId)
                     return@launch
                 }
 

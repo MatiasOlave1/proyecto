@@ -13,6 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.camposocampoolavevargas.proyecto.data.local.HashUtils
+import com.camposocampoolavevargas.proyecto.util.DateUtils
 
 @Singleton
 class SyncRepository @Inject constructor(
@@ -44,7 +46,7 @@ class SyncRepository @Inject constructor(
                 val userEntity = UserEntity(
                     userId = authData.user.id,
                     email = authData.user.email,
-                    passwordHash = password, // Store password hash or token representation
+                    passwordHash = HashUtils.hashPassword(password), // Store proper hash for offline auth
                     phone = authData.user.phone,
                     name = authData.user.name,
                     birthDate = authData.user.birthDate,
@@ -253,8 +255,7 @@ class SyncRepository @Inject constructor(
 
         // Pull remote goals
         try {
-            val currentWeek = java.util.Calendar.getInstance().get(java.util.Calendar.WEEK_OF_YEAR)
-            val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+            val (currentWeek, currentYear) = DateUtils.getIsoWeekYear()
             val response = apiService.getCurrentGoal(currentWeek, currentYear)
             if (response.isSuccessful) {
                 val dto = response.body()
@@ -337,6 +338,7 @@ class SyncRepository @Inject constructor(
             if (response.isSuccessful && response.body() != null) {
                 val remoteAchievements = response.body()!!
                 for (dto in remoteAchievements) {
+                    if (dto.id == null) continue
                     val local = achievementDao.getAchievementByTypeDirect(userId, dto.type)
                     if (local == null) {
                         achievementDao.insertAchievement(
@@ -411,14 +413,18 @@ class SyncRepository @Inject constructor(
                                 lastUpdatedDate = dto.lastUpdatedDate
                             )
                         )
-                    } else if (dto.currentStreak > existing.currentStreak || dto.maxStreak > existing.maxStreak) {
-                        streakDataDao.insertOrUpdateStreak(
-                            existing.copy(
-                                currentStreak = dto.currentStreak,
-                                maxStreak = dto.maxStreak,
-                                lastUpdatedDate = dto.lastUpdatedDate
+                    } else {
+                        val newCurrent = maxOf(dto.currentStreak, existing.currentStreak)
+                        val newMax = maxOf(dto.maxStreak, existing.maxStreak)
+                        if (newCurrent != existing.currentStreak || newMax != existing.maxStreak) {
+                            streakDataDao.insertOrUpdateStreak(
+                                existing.copy(
+                                    currentStreak = newCurrent,
+                                    maxStreak = newMax,
+                                    lastUpdatedDate = dto.lastUpdatedDate
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }
