@@ -14,6 +14,8 @@ import java.util.UUID
 import java.util.regex.Pattern
 import javax.inject.Inject
 
+import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
+
 /**
  * ViewModel for user registration (RF01 - simplified).
  * Requires only email, password and optionally phone. Supports Google account persistence.
@@ -21,7 +23,8 @@ import javax.inject.Inject
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
     private val userDao: UserDao,
-    private val userSession: UserSession
+    private val userSession: UserSession,
+    private val syncRepository: SyncRepository
 ) : BaseViewModel() {
 
     private val _registerState = MutableStateFlow<UiState<String>>(UiState.Success(""))
@@ -71,22 +74,43 @@ class RegisterViewModel @Inject constructor(
                     }
                 }
 
-                // 4. Hash password and insert
+                // 4. Hash password and register
                 val passwordHash = HashUtils.hashPassword(password)
                 val userId = UUID.randomUUID().toString()
-                val newUser = UserEntity(
+
+                val apiResult = syncRepository.register(
                     userId = userId,
                     email = cleanEmail,
                     passwordHash = passwordHash,
                     phone = cleanPhone
                 )
 
-                userDao.insertUser(newUser)
-                
-                // 5. Save session
-                userSession.login(userId)
-                
-                _registerState.value = UiState.Success(userId)
+                if (apiResult.isSuccess) {
+                    val serverUserId = apiResult.getOrThrow()
+                    _registerState.value = UiState.Success(serverUserId)
+                    return@launch
+                }
+
+                // If API call failed, check if it's a network issue to attempt offline registration
+                val exception = apiResult.exceptionOrNull()
+                val isNetworkError = exception is java.io.IOException || exception?.cause is java.io.IOException
+
+                if (isNetworkError) {
+                    val newUser = UserEntity(
+                        userId = userId,
+                        email = cleanEmail,
+                        passwordHash = passwordHash,
+                        phone = cleanPhone
+                    )
+                    userDao.insertUser(newUser)
+                    userSession.login(userId)
+                    _registerState.value = UiState.Success(userId)
+                    return@launch
+                }
+
+                _registerState.value = UiState.Error(
+                    exception?.localizedMessage ?: "Ocurrió un error al registrarse en el servidor."
+                )
             } catch (e: android.database.sqlite.SQLiteConstraintException) {
                 val msg = e.message ?: ""
                 if (msg.contains("email")) {

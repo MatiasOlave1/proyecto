@@ -1,15 +1,23 @@
 package com.camposocampoolavevargas.proyecto.ui.screens
 
+import android.content.Context
 import androidx.lifecycle.viewModelScope
 import com.camposocampoolavevargas.proyecto.data.local.UserSession
 import com.camposocampoolavevargas.proyecto.data.local.dao.SleepRecordDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.StreakDataDao
+import com.camposocampoolavevargas.proyecto.data.local.dao.AchievementDao
+import com.camposocampoolavevargas.proyecto.data.local.dao.CircadianAlertDao
 import com.camposocampoolavevargas.proyecto.data.local.entity.SleepRecordEntity
 import com.camposocampoolavevargas.proyecto.data.local.entity.StreakDataEntity
+import com.camposocampoolavevargas.proyecto.data.local.entity.AchievementEntity
+import com.camposocampoolavevargas.proyecto.data.local.entity.CircadianAlertEntity
 import com.camposocampoolavevargas.proyecto.data.local.model.SleepQuality
 import com.camposocampoolavevargas.proyecto.data.local.model.SyncStatus
+import com.camposocampoolavevargas.proyecto.data.local.model.AchievementType
 import com.camposocampoolavevargas.proyecto.ui.BaseViewModel
+import com.camposocampoolavevargas.proyecto.util.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -18,6 +26,7 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
+import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
 import javax.inject.Inject
 
 /**
@@ -26,9 +35,13 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class SleepLogViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val sleepRecordDao: SleepRecordDao,
     private val streakDataDao: StreakDataDao,
-    private val userSession: UserSession
+    private val achievementDao: AchievementDao,
+    private val circadianAlertDao: CircadianAlertDao,
+    private val userSession: UserSession,
+    private val syncRepository: SyncRepository
 ) : BaseViewModel() {
 
     private val _selectedDate = MutableStateFlow(LocalDate.now().minusDays(1))
@@ -126,12 +139,96 @@ class SleepLogViewModel @Inject constructor(
                     date = dateVal.toString(), // YYYY-MM-DD
                     syncStatus = SyncStatus.PENDING
                 )
-                sleepRecordDao.insertRecord(record)
+                syncRepository.saveSleepRecord(record)
                 updateStreakAfterLog(userId, dateVal)
+                
+                // Evaluate circadian alerts (Social Jet Lag)
+                evaluateCircadianAlerts(userId)
+                
+                // Evaluate and unlock achievements asynchronously
+                evaluateAchievementsAfterLog(userId)
+                
                 _isSaveSuccessful.value = true
             } catch (e: Exception) {
                 _errorMessage.value = "Error al guardar: ${e.localizedMessage ?: "Desconocido"}"
             }
+        }
+    }
+
+    /**
+     * Rules engine to evaluate and unlock achievements after a sleep log and streak update.
+     */
+    private suspend fun evaluateAchievementsAfterLog(userId: String) {
+        try {
+            val totalRecordsCount = sleepRecordDao.getRecordsByUserIdDirect(userId).size
+            val currentStreakData = streakDataDao.getStreakByUserDirect(userId)
+            val currentStreak = currentStreakData?.currentStreak ?: 0
+
+            suspend fun checkAndUnlock(type: AchievementType, condition: Boolean, title: String, desc: String) {
+                if (condition) {
+                    val isAlreadyUnlocked = achievementDao.isAchievementUnlocked(userId, type)
+                    if (!isAlreadyUnlocked) {
+                        val points = when (type) {
+                            AchievementType.FIRST_RECORD -> 50
+                            AchievementType.DISCIPLINE_5_DAYS -> 100
+                            AchievementType.PERFECT_WEEK -> 150
+                            AchievementType.STREAK_10 -> 200
+                            AchievementType.STREAK_30 -> 500
+                            AchievementType.EASTER_EGG -> 0
+                        }
+                        // Insert/update achievement in database
+                        val achievement = AchievementEntity(
+                            userId = userId,
+                            type = type,
+                            unlocked = true,
+                            unlockedAt = System.currentTimeMillis(),
+                            points = points
+                        )
+                        syncRepository.saveAchievement(achievement)
+
+                        // Trigger push notification
+                        NotificationHelper.showAchievementNotification(
+                            context = context,
+                            title = "¡Logro Desbloqueado! 🏆",
+                            message = "$title: $desc"
+                        )
+                    }
+                }
+            }
+
+            // Evaluate specific achievements
+            checkAndUnlock(
+                type = AchievementType.FIRST_RECORD,
+                condition = totalRecordsCount >= 1,
+                title = "Primer Paso",
+                desc = "Has registrado tu primer descanso."
+            )
+            checkAndUnlock(
+                type = AchievementType.DISCIPLINE_5_DAYS,
+                condition = currentStreak >= 5,
+                title = "Disciplina",
+                desc = "Mantuviste tu racha de sueño por 5 días."
+            )
+            checkAndUnlock(
+                type = AchievementType.PERFECT_WEEK,
+                condition = currentStreak >= 7,
+                title = "Perfecto",
+                desc = "Registraste tu sueño durante 7 días continuos."
+            )
+            checkAndUnlock(
+                type = AchievementType.STREAK_10,
+                condition = currentStreak >= 10,
+                title = "Constancia",
+                desc = "¡Alcanzaste una racha de 10 días de registro!"
+            )
+            checkAndUnlock(
+                type = AchievementType.STREAK_30,
+                condition = currentStreak >= 30,
+                title = "Búho Sincronizado",
+                desc = "¡Increíble! Lograste una racha de 30 días."
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -174,7 +271,7 @@ class SleepLogViewModel @Inject constructor(
                 maxStreak = calculatedStreak,
                 lastUpdatedDate = dateString
             )
-            streakDataDao.insertOrUpdateStreak(newStreak)
+            syncRepository.saveStreak(newStreak)
         } else {
             val newMax = maxOf(calculatedStreak, currentStreakData.maxStreak)
             val updatedStreak = currentStreakData.copy(
@@ -183,7 +280,68 @@ class SleepLogViewModel @Inject constructor(
                 lastUpdatedDate = dateString,
                 updatedAt = System.currentTimeMillis()
             )
-            streakDataDao.insertOrUpdateStreak(updatedStreak)
+            syncRepository.saveStreak(updatedStreak)
+        }
+    }
+
+    /**
+     * Evaluates sleep records of the last week (7 days) to detect Social Jet Lag.
+     * If the absolute difference between average weekday wake time and average weekend
+     * wake time is greater than 2 hours, inserts a CircadianAlertEntity.
+     */
+    private suspend fun evaluateCircadianAlerts(userId: String) {
+        try {
+            val allRecords = sleepRecordDao.getRecordsByUserIdDirect(userId)
+            val today = LocalDate.now()
+            val sevenDaysAgo = today.minusDays(7) // Last 7 days
+
+            val recentRecords = allRecords.filter {
+                val recordDate = try { LocalDate.parse(it.date) } catch (e: Exception) { null }
+                recordDate != null && !recordDate.isBefore(sevenDaysAgo)
+            }
+
+            val zoneId = ZoneId.systemDefault()
+            val weekdayWakeTimes = mutableListOf<Float>()
+            val weekendWakeTimes = mutableListOf<Float>()
+
+            for (record in recentRecords) {
+                val recordDate = try { LocalDate.parse(record.date) } catch (e: Exception) { continue }
+                val dayOfWeek = recordDate.dayOfWeek
+                
+                // Get the local time of wakeTime
+                val instant = java.time.Instant.ofEpochMilli(record.wakeTime)
+                val localWakeDateTime = LocalDateTime.ofInstant(instant, zoneId)
+                val decimalHour = localWakeDateTime.hour + (localWakeDateTime.minute / 60.0f)
+
+                if (dayOfWeek == java.time.DayOfWeek.SATURDAY || dayOfWeek == java.time.DayOfWeek.SUNDAY) {
+                    weekendWakeTimes.add(decimalHour)
+                } else {
+                    weekdayWakeTimes.add(decimalHour)
+                }
+            }
+
+            if (weekdayWakeTimes.isNotEmpty() && weekendWakeTimes.isNotEmpty()) {
+                val avgWeekday = weekdayWakeTimes.average().toFloat()
+                val avgWeekend = weekendWakeTimes.average().toFloat()
+                val delta = Math.abs(avgWeekday - avgWeekend)
+
+                if (delta > 2.0f) {
+                    val alert = CircadianAlertEntity(
+                        userId = userId,
+                        deltaHours = delta
+                    )
+                    circadianAlertDao.insertAlert(alert)
+                    
+                    // Trigger a push notification warning the user
+                    NotificationHelper.showAchievementNotification(
+                        context = context,
+                        title = "Ritmo Circadiano Desalineado ⏰",
+                        message = "Detectamos un Jet Lag Social de ${String.format("%.1f", delta)} horas entre semana y fin de semana."
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
