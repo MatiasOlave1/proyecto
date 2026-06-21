@@ -180,7 +180,7 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
     }
     
     private fun mostrarNotificacion() {
-        val intent = Intent(this, MainActivity::class.java)
+        val intent = packageManager.getLaunchIntentForPackage(packageName)
         val pendingIntent = PendingIntent.getActivity(
             this, 0, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -205,6 +205,3 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         fun getService(): AudioPlayerService = this@AudioPlayerService
     }
 }
-
-// MainActivity stub para que compile
-class MainActivity
