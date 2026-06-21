@@ -1,80 +1,195 @@
 package com.camposocampoolavevargas.proyecto.ui.screens
 
-import android.content.res.Configuration.UI_MODE_NIGHT_YES
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
+import java.util.Calendar
 
-/**
- * Screen for Alarm Calculator (RF09 — Calculadora de ciclos).
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AlarmCalculatorScreen(navController: NavController) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text(text = "Alarm Calculator") }
+fun AlarmCalculatorScreen(
+    navController: NavController,
+    viewModel: AlarmCalculatorViewModel = hiltViewModel()
+) {
+    val wakeHour by viewModel.wakeHour.collectAsState()
+    val wakeMinute by viewModel.wakeMinute.collectAsState()
+    val sleepWindows by viewModel.sleepWindows.collectAsState()
+    val alarmSet by viewModel.alarmSet.collectAsState()
+    val selectedDays by viewModel.selectedDays.collectAsState()
+
+    var showTimePicker by remember { mutableStateOf(false) }
+    val timePickerState = rememberTimePickerState(
+        initialHour = wakeHour,
+        initialMinute = wakeMinute
+    )
+
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Calculadora de Sueño") })
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // --- HORA DE DESPERTAR ---
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "¿A qué hora quieres despertar?",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = String.format("%02d:%02d", wakeHour, wakeMinute),
+                            style = MaterialTheme.typography.displaySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(onClick = { showTimePicker = true }) {
+                            Text("Cambiar hora")
+                        }
+                    }
+                }
+            }
+
+            // --- DÍAS DE RECURRENCIA ---
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Repetir",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val days = listOf(
+                            Calendar.MONDAY to "L",
+                            Calendar.TUESDAY to "M",
+                            Calendar.WEDNESDAY to "X",
+                            Calendar.THURSDAY to "J",
+                            Calendar.FRIDAY to "V",
+                            Calendar.SATURDAY to "S",
+                            Calendar.SUNDAY to "D"
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            days.forEach { (day, label) ->
+                                FilterChip(
+                                    selected = selectedDays.contains(day),
+                                    onClick = { viewModel.toggleDay(day) },
+                                    label = { Text(label) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- VENTANAS DE SUEÑO ---
+            item {
+                Text(
+                    text = "Horarios recomendados para acostarte",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
             }
-        ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+
+            if (sleepWindows.isEmpty()) {
+                item {
+                    Text(
+                        text = "Selecciona una hora de despertar para ver las ventanas de sueño.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items(sleepWindows) { window ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = window.bedtime,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    text = "${window.cyclesCount} ciclos · ${window.cyclesCount * 90} min",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                            Text(
+                                text = if (window.cyclesCount >= 5) "⭐ Ideal" else "✓ OK",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
+            // --- BOTÓN ALARMA ---
+            item {
+                Button(
+                    onClick = { if (alarmSet) viewModel.cancelAlarm() else viewModel.setAlarm() },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (alarmSet)
+                            MaterialTheme.colorScheme.error
+                        else
+                            MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Text(
-                        text = "Alarm Calculator",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = if (alarmSet) "Cancelar Alarma" else "Activar Alarma",
+                        fontWeight = FontWeight.Bold
                     )
-                    Text(
-                        text = "Implementar RF09 — Calculadora de ciclos",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                    Button(
-                        onClick = { navController.popBackStack() },
-                        modifier = Modifier.padding(top = 16.dp)
-                    ) {
-                        Text(text = "Volver")
-                    }
                 }
             }
         }
     }
-}
 
-@Preview(uiMode = UI_MODE_NIGHT_YES)
-@Composable
-fun AlarmCalculatorScreenPreview() {
-    DormiBienUTheme {
-        AlarmCalculatorScreen(navController = rememberNavController())
+    // --- TIME PICKER DIALOG ---
+    if (showTimePicker) {
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.updateWakeTime(timePickerState.hour, timePickerState.minute)
+                    showTimePicker = false
+                }) { Text("Confirmar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text("Cancelar") }
+            },
+            text = { TimePicker(state = timePickerState) }
+        )
     }
 }
-
