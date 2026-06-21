@@ -50,7 +50,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    
+
     // Additional dependencies
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.navigation.compose)
@@ -58,10 +58,13 @@ dependencies {
     ksp(libs.hilt.android.compiler)
     implementation(libs.hilt.navigation.compose)
     implementation(libs.play.services.auth)
+
+    // Room — solo una vez
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
 
+    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -69,10 +72,6 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
 
     // Retrofit and Networking
     implementation("com.squareup.retrofit2:retrofit:2.11.0")

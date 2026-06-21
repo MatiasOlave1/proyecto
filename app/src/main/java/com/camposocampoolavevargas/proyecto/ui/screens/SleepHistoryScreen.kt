@@ -207,7 +207,7 @@ fun HistorialTabContent(
                     "BUENO" -> Color(0xFF3FB950)
                     "REGULAR" -> Color(0xFFE3B341)
                     "MALO" -> Color.Red
-                    "MUY MALO" -> Color.Red
+                    "MUY_MALO" -> Color.Red
                     else -> Color.Gray
                 }
 
