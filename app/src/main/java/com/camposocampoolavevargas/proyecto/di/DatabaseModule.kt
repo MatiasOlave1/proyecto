@@ -9,6 +9,7 @@ import com.camposocampoolavevargas.proyecto.data.local.dao.SleepRecordDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.StreakDataDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.UserDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.WeeklyGoalDao
+import com.camposocampoolavevargas.proyecto.relajacion.data.local.dao.SesionRelajacionDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -72,6 +73,12 @@ object DatabaseModule {
     @Singleton
     fun provideCircadianAlertDao(database: AppDatabase): CircadianAlertDao {
         return database.circadianAlertDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideSesionRelajacionDao(database: AppDatabase): SesionRelajacionDao {
+        return database.sesionRelajacionDao()
     }
 }
 
