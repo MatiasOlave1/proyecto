@@ -94,6 +94,6 @@ class FinalizarSesionUseCase(
  */
 class ObtenerHistorialSesionesUseCase(private val repository: RelajacionRepository) {
     operator fun invoke(userId: String): Flow<List<SesionRelajacion>> {
-        return repository.obtainSesionesPorUsuario(userId)
+        return repository.obtenerSesionesPorUsuario(userId)
     }
 }

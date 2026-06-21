@@ -1,48 +1,42 @@
-package com.dormibienu.app.relajacion.util
+package com.dormibienu.app.relajacion.service
 
-import java.time.Instant
-import java.time.Duration
-import java.time.format.DateTimeParseException
+import android.app.Service
+import android.content.Intent
+import android.os.Binder
+import android.os.IBinder
 
-/**
- * Funciones de utilidad centralizadas para el módulo de relajación,
- * enfocadas en el manejo preciso del tiempo en formato ISO 8601 UTC.
- */
-object RelajacionUtils {
+class AudioPlayerService : Service() {
 
-    /**
-     * Genera un timestamp del momento actual en formato estricto ISO 8601 UTC.
-     * Ejemplo: "2026-06-15T10:00:00Z"
-     */
-    fun obtenerTimestampActual(): String {
-        return Instant.now().toString()
+    private val binder = LocalBinder()
+    private var reproduciendo = false
+    private var subtipoActual: String? = null
+
+    inner class LocalBinder : Binder() {
+        fun getService(): AudioPlayerService = this@AudioPlayerService
     }
 
-    /**
-     * Calcula la diferencia en segundos entre un timestamp de inicio y el momento actual.
-     * Esencial para cuantificar el progreso acumulado en sesiones activas o interrupciones.
-     */
-    fun calcularDuracionHastaAhora(iniciadoEnHex: String?): Int {
-        if (iniciadoEnHex.isNullOrEmpty()) return 0
-        return try {
-            val inicio = Instant.parse(iniciadoEnHex)
-            val ahora = Instant.now()
-            Duration.between(inicio, ahora).seconds.toInt()
-        } catch (e: DateTimeParseException) {
-            0
-        }
+    override fun onBind(intent: Intent?): IBinder = binder
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        return START_NOT_STICKY
     }
 
-    /**
-     * Calcula los segundos transcurridos exactos entre dos marcas de tiempo ISO 8601 UTC.
-     */
-    fun calcularDiferenciaSegundos(iniciadoEn: String, finalizadoEn: String): Int {
-        return try {
-            val inicio = Instant.parse(iniciadoEn)
-            val fin = Instant.parse(finalizadoEn)
-            Duration.between(inicio, fin).seconds.toInt()
-        } catch (e: DateTimeParseException) {
-            0
-        }
+    fun reproducirAudio(subtipo: String) {
+        subtipoActual = subtipo
+        reproduciendo = true
+        // TODO: implementar reproducción real
+    }
+
+    fun detenerAudio() {
+        reproduciendo = false
+        subtipoActual = null
+        // TODO: detener reproducción real
+    }
+
+    fun estaReproduciendo(): Boolean = reproduciendo
+
+    override fun onDestroy() {
+        super.onDestroy()
+        reproduciendo = false
     }
 }

@@ -62,7 +62,7 @@ fun RelajacionScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val uiState by viewModel.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     // --- INTEGRACIÓN Y ENLACE CON EL FOREGROUND SERVICE ---
     var audioService by remember { mutableStateOf<AudioPlayerService?>(null) }
@@ -159,7 +159,7 @@ fun RelajacionScreen(
                     viewModel.actualizarEstadoAudio(it.estaReproduciendo(), uiState.audioSeleccionado)
                 }
             }
-            androidx.coroutines.delay(1000)
+            kotlinx.coroutines.delay(1000)
         }
     }
 
