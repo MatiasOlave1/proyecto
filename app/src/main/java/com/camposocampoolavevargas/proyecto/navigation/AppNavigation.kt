@@ -55,7 +55,30 @@ fun AppNavigation(startDestination: String? = null) {
         composable(Screen.AlarmCalculator.route) { AlarmCalculatorScreen(navController) }
         composable(Screen.DisconnectReminder.route) { DisconnectReminderScreen(navController) }
         composable(Screen.Journal.route) { JournalScreen(navController) }
-        composable(Screen.RelaxLibrary.route) { RelaxLibraryScreen(navController) }
+        composable(Screen.RelaxLibrary.route) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val userSession = androidx.compose.runtime.remember {
+                dagger.hilt.android.EntryPointAccessors.fromApplication(context, AppNavigationEntryPoint::class.java).userSession()
+            }
+            val userId = userSession.getActiveUserId()
+            if (userId == null) {
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    navController.navigate(Screen.Login.route)
+                }
+            } else {
+                val viewModel: com.camposocampoolavevargas.proyecto.relajacion.ui.viewmodel.RelajacionViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+                com.camposocampoolavevargas.proyecto.relajacion.ui.screens.RelajacionScreen(
+                    viewModel = viewModel,
+                    userId = userId
+                )
+            }
+        }
     }
+}
+
+@dagger.hilt.EntryPoint
+@dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
+interface AppNavigationEntryPoint {
+    fun userSession(): com.camposocampoolavevargas.proyecto.data.local.UserSession
 }
 
