@@ -34,6 +34,7 @@ class DashboardViewModel @Inject constructor(
     private val weeklyGoalDao: WeeklyGoalDao,
     private val streakDataDao: StreakDataDao,
     private val circadianAlertDao: CircadianAlertDao,
+    private val sleepRecordDao: SleepRecordDao, // ← agregar esto
     private val userSession: UserSession,
     private val syncRepository: SyncRepository
 ) : BaseViewModel() {

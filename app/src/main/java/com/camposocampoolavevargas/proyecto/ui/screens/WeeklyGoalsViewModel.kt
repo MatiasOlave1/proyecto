@@ -8,18 +8,16 @@ import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
 import com.camposocampoolavevargas.proyecto.ui.BaseViewModel
 import com.camposocampoolavevargas.proyecto.util.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
-import com.camposocampoolavevargas.proyecto.util.DateUtils
-import com.camposocampoolavevargas.proyecto.data.local.dao.WeeklyGoalDao
-import kotlinx.coroutines.Job
 
 @HiltViewModel
 class WeeklyGoalsViewModel @Inject constructor(
-    private val weeklyGoalRepository: WeeklyGoalRepository, // ← corregido
+    private val weeklyGoalRepository: WeeklyGoalRepository,
     private val userSession: UserSession,
     private val syncRepository: SyncRepository
 ) : BaseViewModel() {
@@ -42,7 +40,7 @@ class WeeklyGoalsViewModel @Inject constructor(
 
         loadGoalJob?.cancel()
         loadGoalJob = viewModelScope.launch {
-            weeklyGoalDao.getCurrentGoal(userId, isoWeek, isoYear).collect { goal ->
+            weeklyGoalRepository.getCurrentGoal(userId, isoWeek, isoYear).collect { goal ->
                 _goalState.value = goal
             }
         }
