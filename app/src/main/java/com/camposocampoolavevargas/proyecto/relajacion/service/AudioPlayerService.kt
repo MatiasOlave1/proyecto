@@ -22,7 +22,6 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
     private var audioFocusRequest: AudioFocusRequest? = null
     private var ducked = false
     private var pausedDueToLoss = false
-    private var originalVolume = 0
     
     private val binder = AudioPlayerBinder()
     
@@ -93,14 +92,13 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
                 )
                 setDataSource(audioFile)
                 isLooping = true
-                prepare()
-                
-                originalVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                val volume = (maxVolume * 0.7f).toInt()
-                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
-                
-                start()
+
+                setOnPreparedListener {
+                    it.setVolume(0.7f, 0.7f)
+                    it.start()
+                }
+
+                prepareAsync()
             }
             
             mostrarNotificacion()

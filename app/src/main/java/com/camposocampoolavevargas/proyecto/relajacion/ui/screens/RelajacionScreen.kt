@@ -81,7 +81,8 @@ fun RelajacionScreen(
                 onCompletarSesion = { viewModel.completarSesion() },
                 onInterrumpirSesion = { viewModel.interrumpirSesion() },
                 onPausarReanudar = { viewModel.pausarReanudar() },
-                onIncrementarTiempo = { viewModel.incrementarTiempo() }
+                onIncrementarTiempo = { viewModel.incrementarTiempo() },
+                onIncrementarCiclo = { viewModel.incrementarCiclo() }
             )
         }
     }
@@ -182,8 +183,18 @@ private fun RelajacionActivoScreen(
     onCompletarSesion: () -> Unit = {},
     onInterrumpirSesion: () -> Unit = {},
     onPausarReanudar: () -> Unit = {},
-    onIncrementarTiempo: () -> Unit = {}
+    onIncrementarTiempo: () -> Unit = {},
+    onIncrementarCiclo: () -> Unit = {}
 ) {
+    LaunchedEffect(uiState.isSessionActive, uiState.isAnimationRunning, uiState.isAudioPlaying) {
+        if (uiState.isSessionActive && (uiState.isAnimationRunning || uiState.isAudioPlaying)) {
+            while (true) {
+                kotlinx.coroutines.delay(1000)
+                onIncrementarTiempo()
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -206,7 +217,7 @@ private fun RelajacionActivoScreen(
                     .height(300.dp),
                 subtipo = uiState.subtipo,
                 isRunning = uiState.isAnimationRunning,
-                onCicloCompleted = { /* Implementar cuando sea necesario */ }
+                onCicloCompleted = { onIncrementarCiclo() }
             )
         } else {
             Box(

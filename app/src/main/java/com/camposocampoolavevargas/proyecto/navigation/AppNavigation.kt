@@ -60,12 +60,18 @@ fun AppNavigation(startDestination: String? = null) {
             val userSession = androidx.compose.runtime.remember {
                 dagger.hilt.android.EntryPointAccessors.fromApplication(context, AppNavigationEntryPoint::class.java).userSession()
             }
-            val userId = userSession.getActiveUserId() ?: ""
-            val viewModel: com.camposocampoolavevargas.proyecto.relajacion.ui.viewmodel.RelajacionViewModel = androidx.hilt.navigation.compose.hiltViewModel()
-            com.camposocampoolavevargas.proyecto.relajacion.ui.screens.RelajacionScreen(
-                viewModel = viewModel,
-                userId = userId
-            )
+            val userId = userSession.getActiveUserId()
+            if (userId == null) {
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    navController.navigate(Screen.Login.route)
+                }
+            } else {
+                val viewModel: com.camposocampoolavevargas.proyecto.relajacion.ui.viewmodel.RelajacionViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+                com.camposocampoolavevargas.proyecto.relajacion.ui.screens.RelajacionScreen(
+                    viewModel = viewModel,
+                    userId = userId
+                )
+            }
         }
     }
 }

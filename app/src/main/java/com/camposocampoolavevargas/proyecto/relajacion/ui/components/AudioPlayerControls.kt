@@ -57,6 +57,7 @@ fun AudioPlayerControls(
     onStop: () -> Unit = {},
     volume: Float = 0.7f,
     onVolumeChange: (Float) -> Unit = {},
+    showVolumeControl: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -87,9 +88,9 @@ fun AudioPlayerControls(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(if (isPlaying) "Pausar" else "Reproducir")
             }
-            
+
             Spacer(modifier = Modifier.width(8.dp))
-            
+
             IconButton(
                 onClick = onStop,
                 modifier = Modifier.background(
@@ -104,27 +105,29 @@ fun AudioPlayerControls(
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        Text(
-            text = "Volumen",
-            style = MaterialTheme.typography.labelSmall
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        Slider(
-            value = volume,
-            onValueChange = onVolumeChange,
-            valueRange = 0f..1f,
-            modifier = Modifier.fillMaxWidth()
-        )
-        
-        Text(
-            text = "${(volume * 100).toInt()}%",
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.align(Alignment.End)
-        )
+
+        if (showVolumeControl) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Volumen",
+                style = MaterialTheme.typography.labelSmall
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Slider(
+                value = volume,
+                onValueChange = onVolumeChange,
+                valueRange = 0f..1f,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Text(
+                text = "${(volume * 100).toInt()}%",
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.align(Alignment.End)
+            )
+        }
     }
 }
 

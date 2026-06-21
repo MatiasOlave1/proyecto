@@ -102,10 +102,16 @@ class RelajacionViewModel @Inject constructor(
     }
     
     fun pausarReanudar() {
-        _uiState.value = _uiState.value.copy(
-            isAnimationRunning = !_uiState.value.isAnimationRunning,
-            isAudioPlaying = !_uiState.value.isAudioPlaying
-        )
+        val currentState = _uiState.value
+        if (currentState.subtipo.isAudio) {
+            _uiState.value = currentState.copy(
+                isAudioPlaying = !currentState.isAudioPlaying
+            )
+        } else {
+            _uiState.value = currentState.copy(
+                isAnimationRunning = !currentState.isAnimationRunning
+            )
+        }
     }
     
     fun incrementarTiempo() {

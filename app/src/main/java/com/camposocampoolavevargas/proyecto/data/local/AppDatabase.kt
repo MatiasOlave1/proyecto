@@ -5,6 +5,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.camposocampoolavevargas.proyecto.data.local.dao.AchievementDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.CircadianAlertDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.JournalEntryDao
@@ -24,7 +26,7 @@ import com.camposocampoolavevargas.proyecto.relajacion.data.local.dao.SesionRela
 
 /**
  * Main Room Database configuration for the DormiBienU application.
- * Manages 7 entities and declares abstract getters for all corresponding DAOs.
+ * Manages 8 entities and declares abstract getters for all corresponding DAOs.
  */
 @Database(
     entities = [
@@ -38,7 +40,7 @@ import com.camposocampoolavevargas.proyecto.relajacion.data.local.dao.SesionRela
         SesionRelajacionEntity::class
     ],
     version = 4,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -57,6 +59,28 @@ abstract class AppDatabase : RoomDatabase() {
         private var INSTANCE: AppDatabase? = null
 
         /**
+         * Migration from version 3 to 4: adds sesion_relajacion table
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS sesion_relajacion (
+                        uuid TEXT PRIMARY KEY NOT NULL,
+                        userId TEXT NOT NULL,
+                        tipo TEXT NOT NULL,
+                        subtipo TEXT NOT NULL,
+                        duracionSegundos INTEGER NOT NULL,
+                        completada INTEGER NOT NULL,
+                        audioActivo INTEGER NOT NULL,
+                        iniciadoEn TEXT NOT NULL,
+                        finalizadoEn TEXT,
+                        createdAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
+        /**
          * Returns the singleton instance of the database, building it if it doesn't exist.
          */
         fun getDatabase(context: Context): AppDatabase {
@@ -66,7 +90,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "dormibienU_database"
                 )
-                .fallbackToDestructiveMigration()
+                .addMigrations(MIGRATION_3_4)
                 .build()
                 INSTANCE = instance
                 instance

@@ -26,6 +26,6 @@ object RelajacionConfig {
     const val BRILLO_NORMAL = 1f
     
     // Assets de audio (paths relativos)
-    const val ASSET_RUIDO_BLANCO = "audios/ruido_blanco.mp3"
-    const val ASSET_RUIDO_MARRON = "audios/ruido_marron.mp3"
+    const val ASSET_RUIDO_BLANCO = "audio/ruido_blanco.mp3"
+    const val ASSET_RUIDO_MARRON = "audio/ruido_marron.mp3"
 }
