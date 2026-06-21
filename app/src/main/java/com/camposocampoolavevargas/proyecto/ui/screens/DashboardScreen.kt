@@ -76,8 +76,6 @@ fun DashboardTabContent(
     val averageHours by viewModel.averageHours.collectAsState()
     val mostCommonQuality by viewModel.mostCommonQuality.collectAsState()
     val monthlyGoalsCompleted by viewModel.monthlyGoalsCompleted.collectAsState()
-    val streakDays = streakData?.currentStreak ?: 0
-    val streakProgress = if (streakDays == 0) 0f else (streakDays.toFloat() / 10f).coerceAtMost(1f)
 
 
     // Reload active goal and streak data every time this screen becomes active/visible

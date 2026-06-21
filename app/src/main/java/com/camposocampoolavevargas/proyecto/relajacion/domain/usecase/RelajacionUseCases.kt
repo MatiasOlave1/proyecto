@@ -49,6 +49,12 @@ class CompletarSesionRelajacionUseCase @Inject constructor(private val repositor
     }
 }
 
+/**
+ * Caso de Uso para obtener el flujo de sesiones históricas del usuario localmente.
+ */
+class ObtenerHistorialSesionesUseCase(private val repository: RelajacionRepository) {
+    operator fun invoke(userId: String): Flow<List<SesionRelajacion>> {
+        return repository.obtenerSesionesPorUsuario(userId)
 class InterrumpirSesionRelajacionUseCase @Inject constructor(private val repository: RelajacionRepository) {
     
     suspend operator fun invoke(

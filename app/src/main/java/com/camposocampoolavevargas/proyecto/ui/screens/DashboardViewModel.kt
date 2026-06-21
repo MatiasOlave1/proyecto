@@ -34,7 +34,6 @@ class DashboardViewModel @Inject constructor(
     private val weeklyGoalDao: WeeklyGoalDao,
     private val streakDataDao: StreakDataDao,
     private val circadianAlertDao: CircadianAlertDao,
-    private val sleepRecordDao: SleepRecordDao,
     private val userSession: UserSession,
     private val syncRepository: SyncRepository
 ) : BaseViewModel() {
@@ -143,9 +142,6 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Listens to active circadian alerts for the active user session and updates the UI flow.
-     */
     fun loadCircadianAlerts() {
         val userId = userSession.getActiveUserId() ?: return
         circadianAlertsJob?.cancel()
