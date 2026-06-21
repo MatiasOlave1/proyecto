@@ -50,6 +50,7 @@ import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.camposocampoolavevargas.proyecto.data.local.model.SleepQuality
 
 /**
  * Main content Composable for the Historial tab.
@@ -202,13 +203,12 @@ fun HistorialTabContent(
 
                 val horasDormidas = registro.durationMinutes / 60.0
 
-                val colorCalidad = when (registro.quality.name) {
-                    "EXCELENTE" -> Color(0xFF3FB950)
-                    "BUENO" -> Color(0xFF3FB950)
-                    "REGULAR" -> Color(0xFFE3B341)
-                    "MALO" -> Color.Red
-                    "MUY_MALO" -> Color.Red
-                    else -> Color.Gray
+                val colorCalidad = when (registro.quality) {
+                    SleepQuality.EXCELLENT -> Color(0xFF3FB950)
+                    SleepQuality.GOOD -> Color(0xFF3FB950)
+                    SleepQuality.REGULAR -> Color(0xFFE3B341)
+                    SleepQuality.BAD -> Color.Red
+                    SleepQuality.VERY_BAD -> Color.Red
                 }
 
                 val fechaPartes = registro.date.split("-")
@@ -235,7 +235,7 @@ fun HistorialTabContent(
                     month = mes,
                     day = dia,
                     hours = String.format("%.1fh", horasDormidas),
-                    quality = registro.quality.name,
+                    quality = registro.quality.displayName,
                     qualityColor = colorCalidad,
                     hasStreak = horasDormidas >= 7
                 )
@@ -308,7 +308,7 @@ fun HistoryItemRow(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "$quality (${if (qualityColor == Color(0xFF3FB950)) "Verde" else "Amarillo"})",
+                        text = quality,
                         fontSize = 12.sp,
                         color = qualityColor,
                         fontWeight = FontWeight.SemiBold
