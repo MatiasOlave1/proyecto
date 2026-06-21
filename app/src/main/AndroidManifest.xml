@@ -34,6 +34,12 @@
             </intent-filter>
         </receiver>
 
+        <!--para alarmas inteligentes -->
+        <receiver
+            android:name=".service.alarm.AlarmReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

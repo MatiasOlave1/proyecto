@@ -73,6 +73,8 @@ fun DashboardTabContent(
     val scrollState = rememberScrollState()
     val currentGoal by viewModel.currentGoal.collectAsState()
     val streakData by viewModel.streakData.collectAsState()
+    val streakDays = streakData?.currentStreak ?: 0
+    val streakProgress = (streakDays / 30f).coerceIn(0f, 1f)
     val averageHours by viewModel.averageHours.collectAsState()
     val mostCommonQuality by viewModel.mostCommonQuality.collectAsState()
     val monthlyGoalsCompleted by viewModel.monthlyGoalsCompleted.collectAsState()
