@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
+import com.camposocampoolavevargas.proyecto.util.DateUtils
+import com.camposocampoolavevargas.proyecto.data.local.dao.WeeklyGoalDao
+import kotlinx.coroutines.Job
 
 @HiltViewModel
 class WeeklyGoalsViewModel @Inject constructor(
@@ -27,6 +30,8 @@ class WeeklyGoalsViewModel @Inject constructor(
     private val _saveState = MutableStateFlow<UiState<String>>(UiState.Success(""))
     val saveState: StateFlow<UiState<String>> = _saveState
 
+    private var loadGoalJob: Job? = null
+
     init {
         loadCurrentGoal()
     }
@@ -35,8 +40,9 @@ class WeeklyGoalsViewModel @Inject constructor(
         val userId = userSession.getActiveUserId() ?: return
         val (isoWeek, isoYear) = DateUtils.getIsoWeekYear()
 
-        viewModelScope.launch {
-            weeklyGoalRepository.getCurrentGoal(userId, isoWeek, isoYear).collect { goal ->
+        loadGoalJob?.cancel()
+        loadGoalJob = viewModelScope.launch {
+            weeklyGoalDao.getCurrentGoal(userId, isoWeek, isoYear).collect { goal ->
                 _goalState.value = goal
             }
         }

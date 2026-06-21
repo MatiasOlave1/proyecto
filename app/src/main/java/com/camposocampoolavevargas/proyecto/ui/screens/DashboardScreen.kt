@@ -81,8 +81,6 @@ fun DashboardTabContent(
     // Reload active goal and streak data every time this screen becomes active/visible
     val circadianAlerts by viewModel.circadianAlerts.collectAsState()
     val recentSleepRecords by viewModel.recentSleepRecords.collectAsState()
-    val streakDays = streakData?.currentStreak ?: 0
-    val streakProgress = if (streakDays == 0) 0f else (streakDays.toFloat() / 10f).coerceAtMost(1f)
     
     var showCircadianDialog by remember { mutableStateOf(false) }
  
