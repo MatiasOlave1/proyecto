@@ -6,9 +6,11 @@ import com.camposocampoolavevargas.proyecto.data.local.UserSession
 import com.camposocampoolavevargas.proyecto.data.local.dao.SleepRecordDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.StreakDataDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.AchievementDao
+import com.camposocampoolavevargas.proyecto.data.local.dao.CircadianAlertDao
 import com.camposocampoolavevargas.proyecto.data.local.entity.SleepRecordEntity
 import com.camposocampoolavevargas.proyecto.data.local.entity.StreakDataEntity
 import com.camposocampoolavevargas.proyecto.data.local.entity.AchievementEntity
+import com.camposocampoolavevargas.proyecto.data.local.entity.CircadianAlertEntity
 import com.camposocampoolavevargas.proyecto.data.local.model.SleepQuality
 import com.camposocampoolavevargas.proyecto.data.local.model.SyncStatus
 import com.camposocampoolavevargas.proyecto.data.local.model.AchievementType
@@ -37,6 +39,7 @@ class SleepLogViewModel @Inject constructor(
     private val sleepRecordDao: SleepRecordDao,
     private val streakDataDao: StreakDataDao,
     private val achievementDao: AchievementDao,
+    private val circadianAlertDao: CircadianAlertDao,
     private val userSession: UserSession,
     private val syncRepository: SyncRepository
 ) : BaseViewModel() {
@@ -138,6 +141,9 @@ class SleepLogViewModel @Inject constructor(
                 )
                 syncRepository.saveSleepRecord(record)
                 updateStreakAfterLog(userId, dateVal)
+                
+                // Evaluate circadian alerts (Social Jet Lag)
+                evaluateCircadianAlerts(userId)
                 
                 // Evaluate and unlock achievements asynchronously
                 evaluateAchievementsAfterLog(userId)
@@ -275,6 +281,87 @@ class SleepLogViewModel @Inject constructor(
                 updatedAt = System.currentTimeMillis()
             )
             syncRepository.saveStreak(updatedStreak)
+        }
+    }
+
+    private suspend fun evaluateCircadianAlerts(userId: String) {
+        try {
+            val allRecords = sleepRecordDao.getRecordsByUserIdDirect(userId)
+            val today = LocalDate.now()
+            val sevenDaysAgo = today.minusDays(6) // Last 7 days (today + 6 previous days)
+
+            val recentRecords = allRecords.filter {
+                val recordDate = try { LocalDate.parse(it.date) } catch (e: Exception) { null }
+                recordDate != null && !recordDate.isBefore(sevenDaysAgo)
+            }
+
+            val zoneId = ZoneId.systemDefault()
+            val weekdayWakeTimes = mutableListOf<Float>()
+            val weekendWakeTimes = mutableListOf<Float>()
+
+            for (record in recentRecords) {
+                val recordDate = try { LocalDate.parse(record.date) } catch (e: Exception) { continue }
+                val dayOfWeek = recordDate.dayOfWeek
+                
+                // Get the local time of wakeTime
+                val instant = java.time.Instant.ofEpochMilli(record.wakeTime)
+                val localWakeDateTime = LocalDateTime.ofInstant(instant, zoneId)
+                val decimalHour = localWakeDateTime.hour + (localWakeDateTime.minute / 60.0f)
+
+                if (dayOfWeek == java.time.DayOfWeek.SATURDAY || dayOfWeek == java.time.DayOfWeek.SUNDAY) {
+                    weekendWakeTimes.add(decimalHour)
+                } else {
+                    weekdayWakeTimes.add(decimalHour)
+                }
+            }
+
+            if (weekdayWakeTimes.isNotEmpty() && weekendWakeTimes.isNotEmpty()) {
+                val avgWeekday = weekdayWakeTimes.average().toFloat()
+                val avgWeekend = weekendWakeTimes.average().toFloat()
+                val delta = Math.abs(avgWeekday - avgWeekend)
+
+                if (delta > 2.0f) {
+                    // Check if there is already an active alert for the user to avoid duplication
+                    val recentAlerts = circadianAlertDao.getRecentAlerts(userId, 5)
+                    val activeAlert = recentAlerts.find { !it.dismissed }
+                    
+                    if (activeAlert != null) {
+                        val twelveHoursMs = 12 * 60 * 60 * 1000L
+                        val shouldNotify = System.currentTimeMillis() - activeAlert.generatedAt > twelveHoursMs
+
+                        // Update existing active alert's deltaHours, but only reset generatedAt if we notify
+                        val updatedAlert = activeAlert.copy(
+                            deltaHours = delta,
+                            generatedAt = if (shouldNotify) System.currentTimeMillis() else activeAlert.generatedAt
+                        )
+                        circadianAlertDao.insertAlert(updatedAlert)
+
+                        if (shouldNotify) {
+                            NotificationHelper.showAchievementNotification(
+                                context = context,
+                                title = "Ritmo Circadiano Desalineado ⏰",
+                                message = "Detectamos un Jet Lag Social de ${String.format("%.1f", delta)} horas entre semana y fin de semana."
+                            )
+                        }
+                    } else {
+                        // Insert a new alert
+                        val alert = CircadianAlertEntity(
+                            userId = userId,
+                            deltaHours = delta
+                        )
+                        circadianAlertDao.insertAlert(alert)
+                        
+                        // Trigger a push notification warning the user
+                        NotificationHelper.showAchievementNotification(
+                            context = context,
+                            title = "Ritmo Circadiano Desalineado ⏰",
+                            message = "Detectamos un Jet Lag Social de ${String.format("%.1f", delta)} horas entre semana y fin de semana."
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

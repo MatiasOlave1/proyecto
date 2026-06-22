@@ -47,13 +47,21 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.camposocampoolavevargas.proyecto.data.local.model.SleepQuality
 
 /**
  * Main content Composable for the Historial tab.
  */
 @Composable
-fun HistorialTabContent(navController: NavController) {
+fun HistorialTabContent(
+    navController: NavController,
+    viewModel: SleepHistoryViewModel = hiltViewModel()
+) {
     val scrollState = rememberScrollState()
+    val registros by viewModel.records.collectAsState()
 
     Column(
         modifier = Modifier
@@ -191,35 +199,47 @@ fun HistorialTabContent(navController: NavController) {
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Day 1: Oct 26 (7.5h - Good)
-            HistoryItemRow(
-                month = "Oct",
-                day = "26",
-                hours = "7.5h",
-                quality = "Buena",
-                qualityColor = Color(0xFF3FB950), // Green
-                hasStreak = true
-            )
+            registros.forEach { registro ->
 
-            // Day 2: Oct 25 (6.8h - Regular)
-            HistoryItemRow(
-                month = "Oct",
-                day = "25",
-                hours = "6.8h",
-                quality = "Regular",
-                qualityColor = Color(0xFFE3B341), // Yellow/Orange
-                hasStreak = false
-            )
+                val horasDormidas = registro.durationMinutes / 60.0
 
-            // Day 3: Oct 24 (7.1h - Excellent)
-            HistoryItemRow(
-                month = "Oct",
-                day = "24",
-                hours = "7.1h",
-                quality = "Excelente",
-                qualityColor = Color(0xFF3FB950), // Green
-                hasStreak = true
-            )
+                val colorCalidad = when (registro.quality) {
+                    SleepQuality.EXCELLENT -> Color(0xFF3FB950)
+                    SleepQuality.GOOD -> Color(0xFF3FB950)
+                    SleepQuality.REGULAR -> Color(0xFFE3B341)
+                    SleepQuality.BAD -> Color.Red
+                    SleepQuality.VERY_BAD -> Color.Red
+                }
+
+                val fechaPartes = registro.date.split("-")
+
+                val dia = fechaPartes[2]
+
+                val mes = when (fechaPartes[1]) {
+                    "01" -> "ENE"
+                    "02" -> "FEB"
+                    "03" -> "MAR"
+                    "04" -> "ABR"
+                    "05" -> "MAY"
+                    "06" -> "JUN"
+                    "07" -> "JUL"
+                    "08" -> "AGO"
+                    "09" -> "SEP"
+                    "10" -> "OCT"
+                    "11" -> "NOV"
+                    "12" -> "DIC"
+                    else -> "--"
+                }
+
+                HistoryItemRow(
+                    month = mes,
+                    day = dia,
+                    hours = String.format("%.1fh", horasDormidas),
+                    quality = registro.quality.displayName,
+                    qualityColor = colorCalidad,
+                    hasStreak = horasDormidas >= 7
+                )
+            }
         }
     }
 }
@@ -288,7 +308,7 @@ fun HistoryItemRow(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "$quality (${if (qualityColor == Color(0xFF3FB950)) "Verde" else "Amarillo"})",
+                        text = quality,
                         fontSize = 12.sp,
                         color = qualityColor,
                         fontWeight = FontWeight.SemiBold
