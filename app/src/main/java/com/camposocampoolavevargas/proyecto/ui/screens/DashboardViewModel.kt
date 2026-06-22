@@ -129,7 +129,7 @@ class DashboardViewModel @Inject constructor(
             _averageHours.value = durations.average()
 
             val qualityMode =
-                records.groupingBy { it.quality.name }
+                records.groupingBy { it.quality.displayName }
                     .eachCount()
                     .maxByOrNull { it.value }
                     ?.key ?: "Sin datos"

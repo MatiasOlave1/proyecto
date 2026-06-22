@@ -63,6 +63,24 @@ fun HistorialTabContent(
     val scrollState = rememberScrollState()
     val registros by viewModel.records.collectAsState()
 
+    val ultimosRegistros = registros
+        .sortedBy { it.date }
+        .takeLast(7)
+
+    val barData = ultimosRegistros.map {
+        it.durationMinutes / 60f
+    }
+
+    val labels = ultimosRegistros.map {
+        it.date.takeLast(2)
+    }
+
+    val promedioHoras =
+        if (barData.isNotEmpty())
+            barData.average()
+        else
+            0.0
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -97,18 +115,16 @@ fun HistorialTabContent(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "X̄ = 7.2 hrs",
+                        text = "X̄ = %.1f hrs".format(promedioHoras),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF58A6FF) // Muted blue
+                        color = Color(0xFF58A6FF)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // Custom Bar Chart using Canvas
-                val barData = listOf(7.5f, 6.8f, 7.1f, 8.2f, 5.5f, 7.8f, 6.5f, 7.2f, 8.0f)
-                val labels = listOf("06", "08", "10", "12", "14", "17", "19", "20", "23")
 
                 Box(
                     modifier = Modifier
@@ -129,8 +145,15 @@ fun HistorialTabContent(
                             val top = canvasHeight - 20.dp.toPx() - barHeight
 
                             // Pick color based on sleep quality (value >= 7h is good/green, otherwise warning/yellow)
-                            val barColor = if (value >= 7.0f) Color(0xFF3FB950) else Color(0xFFE3B341)
+                            val calidad = ultimosRegistros[index].quality
 
+                            val barColor = when (calidad) {
+                                SleepQuality.EXCELLENT -> Color(0xFF3FB950)
+                                SleepQuality.GOOD -> Color(0xFF3FB950)
+                                SleepQuality.REGULAR -> Color(0xFFE3B341)
+                                SleepQuality.BAD -> Color.Red
+                                SleepQuality.VERY_BAD -> Color.Red
+                            }
                             // Draw rounded bar
                             drawRoundRect(
                                 color = barColor,
