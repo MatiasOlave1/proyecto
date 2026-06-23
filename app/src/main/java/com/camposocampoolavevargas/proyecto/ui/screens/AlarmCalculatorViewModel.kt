@@ -40,6 +40,20 @@ class AlarmCalculatorViewModel @Inject constructor(
     private val _selectedDays = MutableStateFlow(setOf<Int>()) // Calendar.MONDAY etc
     val selectedDays: StateFlow<Set<Int>> = _selectedDays
 
+    private val _selectedWindow = MutableStateFlow<SleepWindow?>(null)
+    val selectedWindow: StateFlow<SleepWindow?> = _selectedWindow
+
+    fun selectWindow(window: SleepWindow) {
+        _selectedWindow.value = window
+    }
+
+    init {
+        calculateSleepWindows(
+            _wakeHour.value,
+            _wakeMinute.value
+        )
+    }
+
     fun updateWakeTime(hour: Int, minute: Int) {
         _wakeHour.value = hour
         _wakeMinute.value = minute
