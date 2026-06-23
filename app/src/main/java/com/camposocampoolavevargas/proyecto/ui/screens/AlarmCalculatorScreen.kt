@@ -125,9 +125,42 @@ fun AlarmCalculatorScreen(
             item {
                 Text(
                     text = "Horarios recomendados para acostarte",
+
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
+            }
+
+            item {
+                selectedWindow?.let { window ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Horario seleccionado",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Text(
+                                text = window.bedtime,
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+
+                            Text(
+                                text = "${window.cyclesCount} ciclos de sueño"
+                            )
+                        }
+                    }
+                }
             }
 
             if (sleepWindows.isEmpty()) {
@@ -200,10 +233,18 @@ fun AlarmCalculatorScreen(
                     }
                 }
 
+
             // --- BOTÓN ALARMA ---
             item {
                 Button(
-                    onClick = { if (alarmSet) viewModel.cancelAlarm() else viewModel.setAlarm() },
+                    onClick = {
+                        if (alarmSet) {
+                            viewModel.cancelAlarm()
+                        } else {
+                            viewModel.setAlarm()
+                            navController.popBackStack()
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (alarmSet)
@@ -213,7 +254,7 @@ fun AlarmCalculatorScreen(
                     )
                 ) {
                     Text(
-                        text = if (alarmSet) "Cancelar Alarma" else "Activar Alarma",
+                        text = if (alarmSet) "Cancelar Alarma" else "Guardar y Activar Alarma",
                         fontWeight = FontWeight.Bold
                     )
                 }
