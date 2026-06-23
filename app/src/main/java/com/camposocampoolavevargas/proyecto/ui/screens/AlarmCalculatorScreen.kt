@@ -12,7 +12,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import java.util.Calendar
-
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlarmCalculatorScreen(
@@ -24,6 +27,7 @@ fun AlarmCalculatorScreen(
     val sleepWindows by viewModel.sleepWindows.collectAsState()
     val alarmSet by viewModel.alarmSet.collectAsState()
     val selectedDays by viewModel.selectedDays.collectAsState()
+    val selectedWindow by viewModel.selectedWindow.collectAsState()
 
     var showTimePicker by remember { mutableStateOf(false) }
     val timePickerState = rememberTimePickerState(
@@ -32,8 +36,24 @@ fun AlarmCalculatorScreen(
     )
 
     Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Calculadora de Sueño") })
+        topBar= {
+            TopAppBar(
+                title = {
+                    Text("Calculadora de Sueño")
+                },
+                navigationIcon = {
+                    IconButton(
+                        onClick = {
+                            navController.popBackStack()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver"
+                        )
+                    }
+                }
+            )
         }
     ) { padding ->
         LazyColumn(
@@ -79,7 +99,7 @@ fun AlarmCalculatorScreen(
                         val days = listOf(
                             Calendar.MONDAY to "L",
                             Calendar.TUESDAY to "M",
-                            Calendar.WEDNESDAY to "X",
+                            Calendar.WEDNESDAY to "Mi",
                             Calendar.THURSDAY to "J",
                             Calendar.FRIDAY to "V",
                             Calendar.SATURDAY to "S",
@@ -119,11 +139,29 @@ fun AlarmCalculatorScreen(
                 }
             } else {
                 items(sleepWindows) { window ->
+
+                    val isSelected = selectedWindow == window
+
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        onClick = {
+                            viewModel.selectWindow(window)
+                        },
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer
-                        )
+                            containerColor =
+                                if (isSelected)
+                                    MaterialTheme.colorScheme.primaryContainer
+                                else
+                                    MaterialTheme.colorScheme.surface
+                        ),
+                        border = if (isSelected)
+                            androidx.compose.foundation.BorderStroke(
+                                2.dp,
+                                MaterialTheme.colorScheme.primary
+                            )
+                        else null
                     ) {
                         Row(
                             modifier = Modifier
@@ -137,23 +175,30 @@ fun AlarmCalculatorScreen(
                                     text = window.bedtime,
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    color =
+                                        if (isSelected)
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        else
+                                            MaterialTheme.colorScheme.onSurface
                                 )
+
                                 Text(
                                     text = "${window.cyclesCount} ciclos · ${window.cyclesCount * 90} min",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    color =
+                                        if (isSelected)
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        else
+                                            MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Text(
                                 text = if (window.cyclesCount >= 5) "⭐ Ideal" else "✓ OK",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                style = MaterialTheme.typography.labelMedium
                             )
                         }
                     }
                 }
-            }
 
             // --- BOTÓN ALARMA ---
             item {
@@ -177,19 +222,20 @@ fun AlarmCalculatorScreen(
     }
 
     // --- TIME PICKER DIALOG ---
-    if (showTimePicker) {
-        AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.updateWakeTime(timePickerState.hour, timePickerState.minute)
-                    showTimePicker = false
-                }) { Text("Confirmar") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) { Text("Cancelar") }
-            },
-            text = { TimePicker(state = timePickerState) }
-        )
+        if (showTimePicker) {
+            AlertDialog(
+                onDismissRequest = { showTimePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.updateWakeTime(timePickerState.hour, timePickerState.minute)
+                        showTimePicker = false
+                    }) { Text("Confirmar") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showTimePicker = false }) { Text("Cancelar") }
+                },
+                text = { TimePicker(state = timePickerState) }
+            )
+        }
     }
 }
