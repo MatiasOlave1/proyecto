@@ -69,7 +69,13 @@ fun AppNavigation(startDestination: String? = null) {
                 val viewModel: com.camposocampoolavevargas.proyecto.relajacion.ui.viewmodel.RelajacionViewModel = androidx.hilt.navigation.compose.hiltViewModel()
                 com.camposocampoolavevargas.proyecto.relajacion.ui.screens.RelajacionScreen(
                     viewModel = viewModel,
-                    userId = userId
+                    userId = userId,
+                    onSessionCompleted = { 
+                        navController.popBackStack()
+                    },
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
                 )
             }
         }
