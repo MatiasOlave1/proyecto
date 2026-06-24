@@ -49,8 +49,39 @@ import androidx.navigation.compose.rememberNavController
 import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.camposocampoolavevargas.proyecto.data.local.model.SleepQuality
+
+/**
+ * Helper function to format ISO date string "YYYY-MM-DD" to short Spanish format "MMM dd"
+ */
+private fun formatShortDate(dateStr: String): String {
+    val parts = dateStr.split("-")
+    if (parts.size != 3) return dateStr
+    val day = parts[2]
+    val monthShort = when (parts[1]) {
+        "01" -> "Ene"
+        "02" -> "Feb"
+        "03" -> "Mar"
+        "04" -> "Abr"
+        "05" -> "May"
+        "06" -> "Jun"
+        "07" -> "Jul"
+        "08" -> "Ago"
+        "09" -> "Sep"
+        "10" -> "Oct"
+        "11" -> "Nov"
+        "12" -> "Dic"
+        else -> ""
+    }
+    return "$monthShort $day"
+}
 
 /**
  * Main content Composable for the Historial tab.
@@ -61,17 +92,18 @@ fun HistorialTabContent(
     viewModel: SleepHistoryViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
-    val registros by viewModel.records.collectAsState()
+    val registros by viewModel.filteredRecords.collectAsState()
+    val selectedFilter by viewModel.selectedFilter.collectAsState()
+    var filterExpanded by remember { mutableStateOf(false) }
 
-    val ultimosRegistros = registros
-        .sortedBy { it.date }
-        .takeLast(7)
+    // Sort oldest to newest for the chart (left to right)
+    val chartRegistros = registros.sortedBy { it.date }
 
-    val barData = ultimosRegistros.map {
+    val barData = chartRegistros.map {
         it.durationMinutes / 60f
     }
 
-    val labels = ultimosRegistros.map {
+    val labels = chartRegistros.map {
         it.date.takeLast(2)
     }
 
@@ -80,6 +112,16 @@ fun HistorialTabContent(
             barData.average()
         else
             0.0
+
+    val dateRangeText = if (registros.isNotEmpty()) {
+        val latestRecord = registros.first()
+        val earliestRecord = registros.last()
+        val formattedStart = formatShortDate(earliestRecord.date)
+        val formattedEnd = formatShortDate(latestRecord.date)
+        if (formattedStart == formattedEnd) formattedStart else "$formattedStart - $formattedEnd"
+    } else {
+        "Sin registros"
+    }
 
     Column(
         modifier = Modifier
@@ -108,8 +150,13 @@ fun HistorialTabContent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val chartTitle = when (selectedFilter) {
+                        HistoryFilter.LAST_7_DAYS -> "Historial - 7 Días"
+                        HistoryFilter.LAST_30_DAYS -> "Historial - 30 Días"
+                        HistoryFilter.ALL -> "Historial Completo"
+                    }
                     Text(
-                        text = "Historial Mensual",
+                        text = chartTitle,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -136,31 +183,34 @@ fun HistorialTabContent(
                         val canvasWidth = size.width
                         val paddingRight = 10.dp.toPx()
                         val spacing = 12.dp.toPx()
-                        val barWidth = (canvasWidth - paddingRight - (spacing * (barData.size - 1))) / barData.size
-                        val maxVal = 10f // Max sleep hours scale
 
-                        barData.forEachIndexed { index, value ->
-                            val barHeight = (value / maxVal) * (canvasHeight - 20.dp.toPx())
-                            val left = index * (barWidth + spacing)
-                            val top = canvasHeight - 20.dp.toPx() - barHeight
+                        if (barData.isNotEmpty()) {
+                            val barWidth = (canvasWidth - paddingRight - (spacing * (barData.size - 1))) / barData.size
+                            val maxVal = 10f // Max sleep hours scale
 
-                            // Pick color based on sleep quality (value >= 7h is good/green, otherwise warning/yellow)
-                            val calidad = ultimosRegistros[index].quality
+                            barData.forEachIndexed { index, value ->
+                                val barHeight = (value / maxVal) * (canvasHeight - 20.dp.toPx())
+                                val left = index * (barWidth + spacing)
+                                val top = canvasHeight - 20.dp.toPx() - barHeight
 
-                            val barColor = when (calidad) {
-                                SleepQuality.EXCELLENT -> Color(0xFF3FB950)
-                                SleepQuality.GOOD -> Color(0xFF3FB950)
-                                SleepQuality.REGULAR -> Color(0xFFE3B341)
-                                SleepQuality.BAD -> Color.Red
-                                SleepQuality.VERY_BAD -> Color.Red
+                                // Pick color based on sleep quality (value >= 7h is good/green, otherwise warning/yellow)
+                                val calidad = chartRegistros[index].quality
+
+                                val barColor = when (calidad) {
+                                    SleepQuality.EXCELLENT -> Color(0xFF3FB950)
+                                    SleepQuality.GOOD -> Color(0xFF3FB950)
+                                    SleepQuality.REGULAR -> Color(0xFFE3B341)
+                                    SleepQuality.BAD -> Color.Red
+                                    SleepQuality.VERY_BAD -> Color.Red
+                                }
+                                // Draw rounded bar
+                                drawRoundRect(
+                                    color = barColor,
+                                    topLeft = Offset(left, top),
+                                    size = Size(barWidth, barHeight),
+                                    cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                                )
                             }
-                            // Draw rounded bar
-                            drawRoundRect(
-                                color = barColor,
-                                topLeft = Offset(left, top),
-                                size = Size(barWidth, barHeight),
-                                cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
-                            )
                         }
 
                         // Draw base guideline
@@ -180,14 +230,24 @@ fun HistorialTabContent(
                             .padding(bottom = 2.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        labels.forEach { label ->
-                            Text(
-                                text = label,
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.width(26.dp),
-                                textAlign = TextAlign.Center
-                            )
+                        labels.forEachIndexed { idx, label ->
+                            val shouldShowLabel = when {
+                                labels.size <= 7 -> true
+                                labels.size <= 14 -> idx % 2 == 0
+                                labels.size <= 31 -> idx % 5 == 0 || idx == labels.size - 1
+                                else -> idx % 10 == 0 || idx == labels.size - 1
+                            }
+                            if (shouldShowLabel) {
+                                Text(
+                                    text = label,
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.width(26.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.width(26.dp))
+                            }
                         }
                     }
                 }
@@ -195,27 +255,51 @@ fun HistorialTabContent(
         }
 
         // --- 2. CARD: FILTRO SELECTOR ---
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, Color(0xFF30363D), RoundedCornerShape(12.dp))
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Filtra: Oct 24 - Oct 26",
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium,
-                fontSize = 13.sp
-            )
-            Icon(
-                imageVector = Icons.Default.ArrowDropDown,
-                contentDescription = "Desplegar",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Box {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, Color(0xFF30363D), RoundedCornerShape(12.dp))
+                    .clickable { filterExpanded = true }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${selectedFilter.displayName} ($dateRangeText)",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 13.sp
+                )
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = "Desplegar",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            DropdownMenu(
+                expanded = filterExpanded,
+                onDismissRequest = { filterExpanded = false },
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+            ) {
+                HistoryFilter.values().forEach { filter ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = filter.displayName,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        onClick = {
+                            viewModel.setFilter(filter)
+                            filterExpanded = false
+                        }
+                    )
+                }
+            }
         }
 
         // --- 3. SLEEP LOG LIST ---
