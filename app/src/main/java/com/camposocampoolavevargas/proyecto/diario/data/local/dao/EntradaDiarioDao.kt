@@ -1,11 +1,11 @@
-package com.dormibienu.app.diario.data.local.dao
+﻿package com.camposocampoolavevargas.proyecto.diario.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.dormibienu.app.diario.data.local.entity.EntradaDiarioEntity
+import com.camposocampoolavevargas.proyecto.diario.data.local.entity.EntradaDiarioEntity
 import kotlinx.coroutines.flow.Flow
 
 /**

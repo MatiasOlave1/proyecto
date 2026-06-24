@@ -1,12 +1,12 @@
-package com.dormibienu.app.diario.data.local.entity
+﻿package com.camposocampoolavevargas.proyecto.diario.data.local.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.dormibienu.app.diario.domain.model.EntradaDiario
+import com.camposocampoolavevargas.proyecto.diario.domain.model.EntradaDiario
 
 /**
- * Entidad de Room que mapea la tabla física de almacenamiento para el diario.
+ * Entidad de Room que mapea la tabla fÃ­sica de almacenamiento para el diario.
  * Implementa la estructura de la SPEC-07 con soporte integrado para Soft Delete.
  */
 @Entity(tableName = "entradas_diario")
@@ -34,11 +34,11 @@ data class EntradaDiarioEntity(
     val creadoEn: String, // ISO 8601 UTC
     
     @ColumnInfo(name = "eliminado_en")
-    val eliminadoEn: String? = null // ISO 8601 UTC (null si está activa)
+    val eliminadoEn: String? = null // ISO 8601 UTC (null si estÃ¡ activa)
 )
 
 /**
- * Mapeador de conversión: Capa de Datos -> Capa de Dominio (Desacoplamiento).
+ * Mapeador de conversiÃ³n: Capa de Datos -> Capa de Dominio (Desacoplamiento).
  */
 fun EntradaDiarioEntity.toDomain(): EntradaDiario {
     return EntradaDiario(
@@ -54,7 +54,7 @@ fun EntradaDiarioEntity.toDomain(): EntradaDiario {
 }
 
 /**
- * Mapeador de conversión: Capa de Dominio -> Capa de Datos (Persistencia).
+ * Mapeador de conversiÃ³n: Capa de Dominio -> Capa de Datos (Persistencia).
  */
 fun EntradaDiario.toEntity(): EntradaDiarioEntity {
     return EntradaDiarioEntity(
