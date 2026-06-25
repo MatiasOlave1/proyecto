@@ -51,13 +51,13 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.camposocampoolavevargas.proyecto.data.local.entity.StreakDataEntity
 import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
 
 /**
  * Screen for Streaks (RF07 — Seguimiento de rachas).
  * Displays current active streak, historical records, and a calendar log for the current week.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StreaksScreen(
     navController: NavController,
@@ -65,7 +65,24 @@ fun StreaksScreen(
 ) {
     val streakData by viewModel.streakData.collectAsState()
     val weeklyLoggingStatus by viewModel.weeklyLoggingStatus.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
 
+    StreaksScreenContent(
+        navController = navController,
+        isOnline = isOnline,
+        streakData = streakData,
+        weeklyLoggingStatus = weeklyLoggingStatus
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StreaksScreenContent(
+    navController: NavController,
+    isOnline: Boolean,
+    streakData: StreakDataEntity?,
+    weeklyLoggingStatus: List<Boolean>
+) {
     val currentStreak = streakData?.currentStreak ?: 0
     val maxStreak = streakData?.maxStreak ?: 0
 
@@ -87,6 +104,43 @@ fun StreaksScreen(
                                 contentDescription = "Volver",
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
+                        }
+                    },
+                    actions = {
+                        Box(
+                            modifier = Modifier
+                                .padding(end = 16.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (isOnline) Color(0xFF66BB6A).copy(alpha = 0.15f)
+                                    else Color(0xFFEF5350).copy(alpha = 0.15f)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isOnline) Color(0xFF66BB6A) else Color(0xFFEF5350),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .background(
+                                            color = if (isOnline) Color(0xFF66BB6A) else Color(0xFFEF5350),
+                                            shape = CircleShape
+                                        )
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (isOnline) "Online" else "Offline",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isOnline) Color(0xFF66BB6A) else Color(0xFFEF5350)
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -350,6 +404,16 @@ fun StreaksScreen(
 @Composable
 fun StreaksScreenPreview() {
     DormiBienUTheme {
-        StreaksScreen(navController = rememberNavController())
+        StreaksScreenContent(
+            navController = rememberNavController(),
+            isOnline = false,
+            streakData = StreakDataEntity(
+                userId = "test_user",
+                currentStreak = 5,
+                maxStreak = 10,
+                lastUpdatedDate = "2026-06-24"
+            ),
+            weeklyLoggingStatus = listOf(true, true, false, true, false, false, false)
+        )
     }
 }
