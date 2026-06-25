@@ -7,9 +7,9 @@ La aplicación DormiBienU es de tipo "Offline-First". Sin embargo, el usuario ca
 - **Clase de Monitoreo**: Implementar una clase de utilidad (`NetworkMonitor`) en Kotlin que use `ConnectivityManager` de Android para observar el estado de red como un flujo continuo (`Flow`).
 - **Lógica de Sincronización Automática**:
   - Modificar `UserDao` para obtener un usuario por su ID sin usar flows.
-  - Implementar en `SyncRepository` la función `ensureUserSessionSynced` para verificar si un usuario registrado localmente de forma offline debe ser registrado o logueado en el servidor remoto para obtener su token Sanctum.
+  - Implementar en `SyncRepository` la función `ensureUserSessionSynced` para verificar si un usuario registrado localmente de forma offline debe ser registrado o iniciar sesión en el servidor remoto para obtener su token Sanctum.
   - Actualizar `syncAll` en `SyncRepository` para asegurar la autenticación del usuario antes de sincronizar.
-  - En `DashboardViewModel`, suscribirse al flujo de conexión y disparar `syncAll` automáticamente en segundo plano en la transición de Offline a Online.
+  - Implementar `SyncCoordinator` a nivel de aplicación para suscribirse al flujo de conexión y disparar `syncAll` automáticamente en segundo plano en la transición de Offline a Online de forma debounceada.
 - **Indicador de Conectividad en la UI**: Agregar una barra/tarjeta informativa premium arriba del sistema de visualización de rachas en la pantalla `StreaksScreen.kt` que muestre si la aplicación se encuentra "En Línea" (Online) o en "Modo Offline" (Offline) con su respectiva iconografía de red y colores de estado HSL.
 
 ## Capabilities

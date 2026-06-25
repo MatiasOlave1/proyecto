@@ -15,6 +15,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import com.camposocampoolavevargas.proyecto.data.local.HashUtils
 import com.camposocampoolavevargas.proyecto.util.DateUtils
+import com.camposocampoolavevargas.proyecto.UserManager
 
 @Singleton
 class SyncRepository @Inject constructor(
@@ -444,13 +445,20 @@ class SyncRepository @Inject constructor(
         }
 
         val userEntity = userDao.getUserByIdDirect(userId) ?: return@withContext false
+        val plainPassword = UserManager.passwordRegistrada
+
+        // If the plain password is not available in memory, we cannot register/login on the remote server
+        if (plainPassword.isEmpty()) {
+            Log.w(tag, "Aborting ensureUserSessionSynced: Plaintext password is not available in memory.")
+            return@withContext false
+        }
 
         try {
             // Attempt to register the offline user on the server
             val registerRequest = RegisterRequest(
                 id = userEntity.userId,
                 email = userEntity.email,
-                password = userEntity.passwordHash,
+                password = plainPassword,
                 phone = userEntity.phone,
                 name = userEntity.name,
                 birthDate = userEntity.birthDate,
@@ -468,7 +476,7 @@ class SyncRepository @Inject constructor(
             } else {
                 // If registration fails (e.g. email already exists), attempt silent login
                 Log.d(tag, "Registration failed, attempting silent login.")
-                val loginRequest = LoginRequest(userEntity.email, userEntity.passwordHash)
+                val loginRequest = LoginRequest(userEntity.email, plainPassword)
                 val logResponse = apiService.login(loginRequest)
                 if (logResponse.isSuccessful && logResponse.body() != null) {
                     val authData = logResponse.body()!!

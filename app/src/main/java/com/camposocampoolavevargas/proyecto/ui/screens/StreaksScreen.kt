@@ -48,6 +48,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
@@ -107,20 +109,23 @@ fun StreaksScreenContent(
                         }
                     },
                     actions = {
+                        val indicatorColor = if (isOnline) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        val backgroundColor = indicatorColor.copy(alpha = 0.15f)
+                        val statusLabel = if (isOnline) "En línea" else "Modo Offline"
+                        val accessibilityDesc = if (isOnline) "Conectado a internet" else "Sin conexión a internet"
+
                         Box(
                             modifier = Modifier
                                 .padding(end = 16.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(
-                                    if (isOnline) Color(0xFF66BB6A).copy(alpha = 0.15f)
-                                    else Color(0xFFEF5350).copy(alpha = 0.15f)
-                                )
+                                .background(backgroundColor)
                                 .border(
                                     width = 1.dp,
-                                    color = if (isOnline) Color(0xFF66BB6A) else Color(0xFFEF5350),
+                                    color = indicatorColor,
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .semantics { contentDescription = accessibilityDesc }
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically
@@ -129,16 +134,16 @@ fun StreaksScreenContent(
                                     modifier = Modifier
                                         .size(6.dp)
                                         .background(
-                                            color = if (isOnline) Color(0xFF66BB6A) else Color(0xFFEF5350),
+                                            color = indicatorColor,
                                             shape = CircleShape
                                         )
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (isOnline) "Online" else "Offline",
+                                    text = statusLabel,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isOnline) Color(0xFF66BB6A) else Color(0xFFEF5350)
+                                    color = indicatorColor
                                 )
                             }
                         }

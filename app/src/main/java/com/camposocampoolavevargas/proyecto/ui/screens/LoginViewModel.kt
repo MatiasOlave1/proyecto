@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
+import com.camposocampoolavevargas.proyecto.UserManager
 
 /**
  * ViewModel for user login (RF01 - simplified).
@@ -70,6 +71,10 @@ class LoginViewModel @Inject constructor(
                     if (user != null) {
                         val inputHash = HashUtils.hashPassword(password)
                         if (user.passwordHash == inputHash) {
+                            // Save credentials temporarily in memory for background sync
+                            UserManager.correoRegistrado = user.email
+                            UserManager.passwordRegistrada = password
+
                             userSession.login(user.userId)
                             _loginState.value = UiState.Success(user.userId)
                             return@launch

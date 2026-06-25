@@ -25,7 +25,6 @@ import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
 import com.camposocampoolavevargas.proyecto.util.DateUtils
-import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
 import com.camposocampoolavevargas.proyecto.util.NetworkMonitor
 
 /**
@@ -39,7 +38,6 @@ class DashboardViewModel @Inject constructor(
     private val circadianAlertDao: CircadianAlertDao,
     private val sleepRecordDao: SleepRecordDao,
     private val userSession: UserSession,
-    private val syncRepository: SyncRepository,
     private val networkMonitor: NetworkMonitor
 ) : BaseViewModel() {
 
@@ -77,20 +75,6 @@ class DashboardViewModel @Inject constructor(
         loadMonthlyStatistics()
         loadCircadianAlerts()
         loadRecentSleepRecords()
-        observeNetworkAndSync()
-    }
-
-    private fun observeNetworkAndSync() {
-        viewModelScope.launch {
-            networkMonitor.isOnline.collect { isOnline ->
-                if (isOnline) {
-                    val userId = userSession.getActiveUserId()
-                    if (userId != null) {
-                        syncRepository.syncAll(userId)
-                    }
-                }
-            }
-        }
     }
 
     /**

@@ -143,7 +143,7 @@ fun DashboardTabContent(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (isOnline) "En línea/Sincronizado" else "Modo Offline",
+                            text = if (isOnline) "En línea" else "Modo Offline",
                             style = MaterialTheme.typography.labelSmall,
                             color = if (isOnline) Color(0xFF3FB950) else Color(0xFFEF5350)
                         )

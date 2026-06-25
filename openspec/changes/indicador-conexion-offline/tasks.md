@@ -5,13 +5,13 @@
 ## 2. Persistencia y Sincronización de Sesión (Data & Repository)
 
 - [ ] 2.1 Agregar la consulta suspendida `getUserByIdDirect` en [UserDao.kt](file:///home/seba/AndroidStudioProjects/proyecto/app/src/main/java/com/camposocampoolavevargas/proyecto/data/local/dao/UserDao.kt) para recuperar el perfil del usuario local sin flows.
-- [ ] 2.2 Implementar la función `ensureUserSessionSynced` en [SyncRepository.kt](file:///home/seba/AndroidStudioProjects/proyecto/app/src/main/java/com/camposocampoolavevargas/proyecto/data/repository/SyncRepository.kt) para registrar o loguear silenciosamente en el servidor remoto al usuario que fue creado localmente offline, obteniendo su token de sesión Sanctum.
+- [ ] 2.2 Implementar la función `ensureUserSessionSynced` en [SyncRepository.kt](file:///home/seba/AndroidStudioProjects/proyecto/app/src/main/java/com/camposocampoolavevargas/proyecto/data/repository/SyncRepository.kt) para registrar o iniciar sesión silenciosamente en el servidor remoto al usuario que fue creado localmente offline, obteniendo su token de sesión Sanctum.
 - [ ] 2.3 Modificar `syncAll` en [SyncRepository.kt](file:///home/seba/AndroidStudioProjects/proyecto/app/src/main/java/com/camposocampoolavevargas/proyecto/data/repository/SyncRepository.kt) para llamar a `ensureUserSessionSynced` al inicio y abortar la sincronización si no se puede establecer una sesión válida en el servidor.
 
-## 3. Lógica de negocio (ViewModel)
+## 3. Lógica de negocio (ViewModel & Coordinator)
 
 - [ ] 3.1 Inyectar `NetworkMonitor` y exponer un `StateFlow<Boolean>` llamado `isOnline` en [StreaksViewModel.kt](file:///home/seba/AndroidStudioProjects/proyecto/app/src/main/java/com/camposocampoolavevargas/proyecto/ui/screens/StreaksViewModel.kt).
-- [ ] 3.2 Inyectar `NetworkMonitor` en [DashboardViewModel.kt](file:///home/seba/AndroidStudioProjects/proyecto/app/src/main/java/com/camposocampoolavevargas/proyecto/ui/screens/DashboardViewModel.kt) y configurar una suscripción en `viewModelScope` que llame automáticamente a `syncRepository.syncAll(userId)` al transicionar a `isOnline == true`.
+- [ ] 3.2 Crear la clase `SyncCoordinator.kt` e inyectarla en `MainActivity.kt` para suscribirse de forma debounceada a `NetworkMonitor.isOnline` y disparar `syncRepository.syncAll(userId)` al volver a estar online en segundo plano.
 
 ## 4. Interfaz de Usuario (UI)
 

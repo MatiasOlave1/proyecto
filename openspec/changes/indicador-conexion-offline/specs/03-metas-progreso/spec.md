@@ -21,6 +21,6 @@ El sistema SHALL empaquetar y sincronizar de manera automatizada en segundo plan
 - **AND** el dispositivo detecta una transición de estado de red de Offline a Online.
 - **WHEN** el sistema dispara la rutina de sincronización de fondo.
 - **THEN** el sistema DEBERÁ primero comprobar la existencia de un token de sesión activo.
-- **AND** si no existe token pero el usuario está logueado localmente, deberá registrar o loguear al usuario en el servidor para obtener su token.
+- **AND** si no existe token pero el usuario ha iniciado sesión localmente, deberá registrar o iniciar sesión con el usuario en el servidor para obtener su token.
 - **AND** enviar el paquete de registros pendientes (`syncSleepRecords`), las metas semanales, las rachas y los logros al servidor.
 - **AND** actualizar el estado de los registros locales correspondientes a `SYNCED` una vez confirmada la recepción exitosa del servidor.

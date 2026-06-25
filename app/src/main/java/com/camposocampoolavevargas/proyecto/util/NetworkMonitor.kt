@@ -27,11 +27,11 @@ class NetworkMonitor @Inject constructor(
 
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                trySend(true)
+                trySend(isCurrentlyConnected())
             }
 
             override fun onLost(network: Network) {
-                trySend(false)
+                trySend(isCurrentlyConnected())
             }
         }
 
