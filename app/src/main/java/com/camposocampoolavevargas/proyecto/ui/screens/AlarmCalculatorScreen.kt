@@ -234,49 +234,72 @@ fun AlarmCalculatorScreen(
                 }
 
 
-            // --- BOTÓN ALARMA ---
-            item {
-                Button(
-                    onClick = {
-                        if (alarmSet) {
-                            viewModel.cancelAlarm()
-                        } else {
-                            viewModel.setAlarm()
-                            navController.popBackStack()
+                // --- BOTONES ---
+                item {
+
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+
+                        Button(
+                            onClick = {
+                                viewModel.setAlarm()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = selectedWindow != null
+                        ) {
+                            Text(
+                                text = "Guardar y Activar Alarma",
+                                fontWeight = FontWeight.Bold
+                            )
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (alarmSet)
-                            MaterialTheme.colorScheme.error
-                        else
-                            MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text(
-                        text = if (alarmSet) "Cancelar Alarma" else "Guardar y Activar Alarma",
-                        fontWeight = FontWeight.Bold
+
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.cancelAlarm()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = alarmSet
+                        ) {
+                            Text(
+                                text = "Cancelar Alarma",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+                // --- TIME PICKER DIALOG ---
+                if (showTimePicker) {
+                    AlertDialog(
+                        onDismissRequest = { showTimePicker = false },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    viewModel.updateWakeTime(
+                                        timePickerState.hour,
+                                        timePickerState.minute
+                                    )
+                                    showTimePicker = false
+                                }
+                            ) {
+                                Text("Confirmar")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = {
+                                    showTimePicker = false
+                                }
+                            ) {
+                                Text("Cancelar")
+                            }
+                        },
+                        text = {
+                            TimePicker(state = timePickerState)
+                        }
                     )
                 }
             }
         }
-    }
-
-    // --- TIME PICKER DIALOG ---
-        if (showTimePicker) {
-            AlertDialog(
-                onDismissRequest = { showTimePicker = false },
-                confirmButton = {
-                    TextButton(onClick = {
-                        viewModel.updateWakeTime(timePickerState.hour, timePickerState.minute)
-                        showTimePicker = false
-                    }) { Text("Confirmar") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showTimePicker = false }) { Text("Cancelar") }
-                },
-                text = { TimePicker(state = timePickerState) }
-            )
-        }
-    }
-}

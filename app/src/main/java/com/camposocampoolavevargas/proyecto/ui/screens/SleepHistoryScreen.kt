@@ -106,7 +106,9 @@ fun HistorialTabContent(
     viewModel: SleepHistoryViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
-    val registros by viewModel.records.collectAsState()
+    val registros by viewModel.filteredRecords.collectAsState()
+    val selectedFilter by viewModel.selectedFilter.collectAsState()
+    var filterExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.reload() }
 
@@ -115,6 +117,16 @@ fun HistorialTabContent(
     val labels    = ultimos7.map { it.date.takeLast(2) }
     val calidades = ultimos7.map { it.quality }
     val promedio  = if (barData.isNotEmpty()) barData.average() else 0.0
+
+    val dateRangeText = if (registros.isNotEmpty()) {
+        val latestRecord = registros.first()
+        val earliestRecord = registros.last()
+        val formattedStart = formatShortDate(earliestRecord.date)
+        val formattedEnd = formatShortDate(latestRecord.date)
+        if (formattedStart == formattedEnd) formattedStart else "$formattedStart - $formattedEnd"
+    } else {
+        "Sin registros"
+    }
 
     Column(
         modifier = Modifier

@@ -8,10 +8,19 @@ import com.camposocampoolavevargas.proyecto.ui.BaseViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+
+enum class HistoryFilter(val displayName: String) {
+    LAST_7_DAYS("Últimos 7 días"),
+    LAST_30_DAYS("Últimos 30 días"),
+    ALL("Todos los registros")
+}
 
 data class SleepBarData(
     val day: String,
@@ -27,6 +36,44 @@ class SleepHistoryViewModel @Inject constructor(
     private val _records =
         MutableStateFlow<List<SleepRecordEntity>>(emptyList())
     val records: StateFlow<List<SleepRecordEntity>> = _records
+
+    private val _selectedFilter = MutableStateFlow(HistoryFilter.LAST_7_DAYS)
+    val selectedFilter: StateFlow<HistoryFilter> = _selectedFilter
+
+    val filteredRecords: StateFlow<List<SleepRecordEntity>> = combine(
+        _records,
+        _selectedFilter
+    ) { recordsList, filter ->
+        when (filter) {
+            HistoryFilter.LAST_7_DAYS -> {
+                val limitDate = LocalDate.now().minusDays(6)
+                recordsList.filter {
+                    try {
+                        val recordDate = LocalDate.parse(it.date)
+                        !recordDate.isBefore(limitDate)
+                    } catch (e: Exception) {
+                        false
+                    }
+                }
+            }
+            HistoryFilter.LAST_30_DAYS -> {
+                val limitDate = LocalDate.now().minusDays(29)
+                recordsList.filter {
+                    try {
+                        val recordDate = LocalDate.parse(it.date)
+                        !recordDate.isBefore(limitDate)
+                    } catch (e: Exception) {
+                        false
+                    }
+                }
+            }
+            HistoryFilter.ALL -> recordsList
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     private val _chartData =
         MutableStateFlow<List<SleepBarData>>(emptyList())
