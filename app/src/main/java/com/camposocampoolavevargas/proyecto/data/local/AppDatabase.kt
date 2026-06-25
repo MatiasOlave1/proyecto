@@ -85,20 +85,20 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         /**
-         * Migration from version 4 to 5: adds entrada_diario table (SPEC-07)
+         * Migration from version 4 to 5: adds entradas_diario table (SPEC-07)
          */
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""
-                    CREATE TABLE IF NOT EXISTS entrada_diario (
+                    CREATE TABLE IF NOT EXISTS entradas_diario (
                         uuid TEXT PRIMARY KEY NOT NULL,
-                        userId TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
                         contenido TEXT NOT NULL,
-                        fechaEntrada TEXT NOT NULL,
-                        autoEliminar INTEGER NOT NULL,
+                        fecha_entrada TEXT NOT NULL,
+                        auto_eliminar INTEGER NOT NULL,
                         eliminada INTEGER NOT NULL DEFAULT 0,
-                        creadoEn TEXT NOT NULL,
-                        eliminadoEn TEXT
+                        creado_en TEXT NOT NULL,
+                        eliminado_en TEXT
                     )
                 """.trimIndent())
             }

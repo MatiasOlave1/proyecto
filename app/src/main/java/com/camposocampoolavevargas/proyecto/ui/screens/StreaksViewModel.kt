@@ -7,10 +7,13 @@ import com.camposocampoolavevargas.proyecto.data.local.dao.StreakDataDao
 import com.camposocampoolavevargas.proyecto.data.local.entity.SleepRecordEntity
 import com.camposocampoolavevargas.proyecto.data.local.entity.StreakDataEntity
 import com.camposocampoolavevargas.proyecto.ui.BaseViewModel
+import com.camposocampoolavevargas.proyecto.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -24,8 +27,12 @@ import javax.inject.Inject
 class StreaksViewModel @Inject constructor(
     private val streakDataDao: StreakDataDao,
     private val sleepRecordDao: SleepRecordDao,
-    private val userSession: UserSession
+    private val userSession: UserSession,
+    private val networkMonitor: NetworkMonitor
 ) : BaseViewModel() {
+
+    val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     private val _streakData = MutableStateFlow<StreakDataEntity?>(null)
     val streakData: StateFlow<StreakDataEntity?> = _streakData

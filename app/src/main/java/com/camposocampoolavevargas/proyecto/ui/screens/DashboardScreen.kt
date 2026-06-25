@@ -78,6 +78,7 @@ fun DashboardTabContent(
     val averageHours by viewModel.averageHours.collectAsState()
     val mostCommonQuality by viewModel.mostCommonQuality.collectAsState()
     val monthlyGoalsCompleted by viewModel.monthlyGoalsCompleted.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
 
 
     // Reload active goal and streak data every time this screen becomes active/visible
@@ -138,13 +139,13 @@ fun DashboardTabContent(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF3FB950)) // Green indicator
+                                .background(if (isOnline) Color(0xFF3FB950) else Color(0xFFEF5350))
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "En línea/Sincronizado",
+                            text = if (isOnline) "En línea/Sincronizado" else "Modo Offline",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF3FB950)
+                            color = if (isOnline) Color(0xFF3FB950) else Color(0xFFEF5350)
                         )
                     }
                 }
