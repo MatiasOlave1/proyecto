@@ -19,11 +19,11 @@ La aplicación DormiBienU es offline-first. Para evitar la pérdida de informaci
 - **Decisión**: Si el usuario inició sesión/se registró de forma offline, al volver a estar online se enviarán los datos locales del perfil en `UserEntity` para intentar registrarlo en la base de datos remota. Si falla porque ya está registrado (ej. el correo ya existe en el servidor), se intentará un inicio de sesión silencioso con las credenciales locales cifradas para obtener el token Sanctum.
 - **Razón**: Sin token Sanctum, todas las llamadas de sincronización fallarán con `401 Unauthorized`. Este paso de sincronización de credenciales asegura que el flujo de sincronización posterior sea exitoso.
 
-### 2. Disparador Automático de Sincronización en DashboardViewModel
-- **Decisión**: `DashboardViewModel` recolectará el flujo de `NetworkMonitor.isOnline`. Si transiciona a `true`, llamará a `syncRepository.syncAll` en una corrutina.
-- **Razón**: El Dashboard es la pantalla de inicio del flujo de pestañas principal, por lo que es el lugar ideal para alojar la sincronización automática de fondo sin interrumpir la experiencia del usuario.
+### 2. Disparador Automático de Sincronización en SyncCoordinator
+- **Decisión**: El componente `SyncCoordinator` a nivel de aplicación observará el flujo `NetworkMonitor.isOnline` aplicando `distinctUntilChanged()` y `debounce(1000)`. Si transiciona y se estabiliza en `true` (Online), disparará la sincronización en segundo plano mediante `syncRepository.syncAll`.
+- **Razón**: Mover la lógica fuera del ViewModel de la UI desacopla el ciclo de vida de la sincronización del ciclo de vida de las vistas, y el debounce de 1 segundo filtra oscilaciones y reconexiones rápidas de red.
 
 ## Risks / Trade-offs
 
 - [Riesgo] -> Ejecutar sincronizaciones múltiples si el estado de conexión oscila rápidamente.
-- [Mitigación] -> El interceptor de Retrofit y el estado de `SyncStatus.PENDING` protegen la integridad de los datos, ya que sólo los registros marcados como pendientes se empaquetarán y enviarán, cambiando a `SYNCED` una vez procesados.
+- [Mitigación] -> El uso de `debounce` en `SyncCoordinator` mitiga llamadas excesivas. Adicionalmente, el interceptor de Retrofit y el estado de `SyncStatus.PENDING` protegen la integridad de los datos, ya que sólo los registros marcados como pendientes se empaquetarán y enviarán, cambiando a `SYNCED` una vez procesados.

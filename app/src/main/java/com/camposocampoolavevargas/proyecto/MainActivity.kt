@@ -12,6 +12,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.camposocampoolavevargas.proyecto.data.repository.SyncCoordinator
+import javax.inject.Inject
 
 /**
  * Main Activity of the DormiBienU application.
@@ -19,8 +21,15 @@ import androidx.core.content.ContextCompat
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var syncCoordinator: SyncCoordinator
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Start monitoring connection and triggering background sync
+        syncCoordinator.start()
 
         // Request Notification Permission for Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
