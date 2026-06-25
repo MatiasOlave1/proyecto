@@ -19,15 +19,28 @@ class DormiBienUApplication : Application() {
 
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = getString(R.string.notification_channel_name)
-            val descriptionText = getString(R.string.notification_channel_description)
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel("DISCONNECT_CHANNEL", name, importance).apply {
-                description = descriptionText
+            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+
+            // Canal existente
+            val disconnectChannel = NotificationChannel(
+                "DISCONNECT_CHANNEL",
+                getString(R.string.notification_channel_name),
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = getString(R.string.notification_channel_description)
             }
-            val notificationManager: NotificationManager =
-                getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+
+            // Canal nuevo para audio de relajación
+            val relajacionChannel = NotificationChannel(
+                "relajacion_channel",
+                "Relajación",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Audio de relajación en reproducción"
+            }
+
+            notificationManager.createNotificationChannel(disconnectChannel)
+            notificationManager.createNotificationChannel(relajacionChannel)
         }
     }
 }

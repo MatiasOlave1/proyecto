@@ -2,6 +2,7 @@
 
 import com.camposocampoolavevargas.proyecto.diario.data.repository.DiarioRepository
 import com.camposocampoolavevargas.proyecto.diario.domain.model.EntradaDiario
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import java.util.UUID
@@ -10,7 +11,7 @@ import java.util.UUID
  * Contenedor que agrupa todos los casos de uso del mÃ³dulo Diario de Preocupaciones.
  * Facilita la inyecciÃ³n Ãºnica en la capa de UI/ViewModel.
  */
-data class DiarioUseCases(
+class DiarioUseCases @Inject constructor(
     val guardarEntrada: GuardarEntradaUseCase,
     val obtenerHistorial: ObtenerHistorialDiarioUseCase,
     val eliminarEntrada: EliminarEntradaUseCase,

@@ -1,6 +1,5 @@
 package com.camposocampoolavevargas.proyecto.relajacion.service
 
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -16,147 +15,154 @@ import androidx.core.app.NotificationCompat
 import com.camposocampoolavevargas.proyecto.R
 
 class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
-    
+
     private var mediaPlayer: MediaPlayer? = null
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     private var ducked = false
     private var pausedDueToLoss = false
-    
+    private var currentAssetPath: String? = null
+
     private val binder = AudioPlayerBinder()
-    
+
     companion object {
-        const val ACTION_PLAY = "com.camposocampoolavevargas.proyecto.PLAY"
+        const val ACTION_PLAY  = "com.camposocampoolavevargas.proyecto.PLAY"
         const val ACTION_PAUSE = "com.camposocampoolavevargas.proyecto.PAUSE"
-        const val ACTION_STOP = "com.camposocampoolavevargas.proyecto.STOP"
+        const val ACTION_STOP  = "com.camposocampoolavevargas.proyecto.STOP"
         const val EXTRA_AUDIO_FILE = "audio_file"
-        const val NOTIFICATION_ID = 1
+        const val NOTIFICATION_ID  = 1
     }
-    
+
     override fun onCreate() {
         super.onCreate()
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
     }
-    
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // ── Llamar startForeground INMEDIATAMENTE para cumplir el límite de 5s ──
+        mostrarNotificacion()
+
         when (intent?.action) {
             ACTION_PLAY -> {
-                val audioFile = intent.getStringExtra(EXTRA_AUDIO_FILE) ?: return START_STICKY
-                reproducir(audioFile)
+                val audioFile = intent.getStringExtra(EXTRA_AUDIO_FILE)
+                if (audioFile != null && audioFile != currentAssetPath) {
+                    liberarMediaPlayer()
+                    currentAssetPath = audioFile
+                    reproducir(audioFile)
+                } else if (audioFile != null) {
+                    // Misma pista — reanudar
+                    reanudar()
+                } else {
+                    reanudar()
+                }
             }
             ACTION_PAUSE -> pausar()
-            ACTION_STOP -> detener()
+            ACTION_STOP  -> detener()
         }
         return START_STICKY
     }
-    
-    fun reproducir(audioFile: String) {
+
+    private fun reproducir(assetPath: String) {
         try {
-            // Solicitar audio focus
             val audioAttributes = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build()
-            
-            audioFocusRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).apply {
-                    setAudioAttributes(audioAttributes)
-                    setOnAudioFocusChangeListener(this@AudioPlayerService)
-                }.build()
-            } else {
-                null
-            }
-            
-            val focusResult = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
+
+            // Solicitar audio focus
+            val focusResult = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(audioAttributes)
+                    .setOnAudioFocusChangeListener(this)
+                    .build()
                 audioManager.requestAudioFocus(audioFocusRequest!!)
             } else {
                 @Suppress("DEPRECATION")
                 audioManager.requestAudioFocus(
-                    this,
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.AUDIOFOCUS_GAIN
+                    this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN
                 )
             }
-            
-            if (focusResult != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                return
-            }
-            
-            // Inicializar MediaPlayer
+
+            if (focusResult != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) return
+
+            // Abrir asset con AssetFileDescriptor
+            val afd = assets.openFd(assetPath)
+
             mediaPlayer = MediaPlayer().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
-                )
-                setDataSource(audioFile)
+                setAudioAttributes(audioAttributes)
+                setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                afd.close()
                 isLooping = true
-
-                setOnPreparedListener {
-                    it.setVolume(0.7f, 0.7f)
-                    it.start()
+                setOnPreparedListener { mp ->
+                    mp.setVolume(0.7f, 0.7f)
+                    mp.start()
                 }
-
+                setOnErrorListener { _, _, _ -> false }
                 prepareAsync()
             }
-            
-            mostrarNotificacion()
-            
+
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
-    
+
     fun pausar() {
-        mediaPlayer?.let {
-            if (it.isPlaying) {
-                it.pause()
-            }
-        }
+        mediaPlayer?.let { if (it.isPlaying) it.pause() }
     }
-    
+
     fun reanudar() {
-        mediaPlayer?.let {
-            if (!it.isPlaying) {
-                it.start()
+        try {
+            mediaPlayer?.let {
+                if (!it.isPlaying) {
+                    it.start()
+                }
+            } ?: run {
+                // Si el mediaPlayer fue liberado, volver a cargar
+                currentAssetPath?.let { reproducir(it) }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Intentar recargar si hay error de estado
+            currentAssetPath?.let {
+                liberarMediaPlayer()
+                reproducir(it)
             }
         }
     }
-    
+
     fun detener() {
-        mediaPlayer?.let {
-            if (it.isPlaying) {
-                it.stop()
-            }
-            it.release()
-        }
-        mediaPlayer = null
-        
-        // Liberar audio focus
+        liberarMediaPlayer()
+        currentAssetPath = null
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
             audioManager.abandonAudioFocusRequest(audioFocusRequest!!)
         } else {
             @Suppress("DEPRECATION")
             audioManager.abandonAudioFocus(this)
         }
-        
+
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
-    
+
+    private fun liberarMediaPlayer() {
+        mediaPlayer?.let {
+            try { if (it.isPlaying) it.stop() } catch (_: Exception) {}
+            it.release()
+        }
+        mediaPlayer = null
+    }
+
     override fun onAudioFocusChange(focusChange: Int) {
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {
-                mediaPlayer?.let {
-                    if (!it.isPlaying && pausedDueToLoss) {
-                        it.start()
-                        pausedDueToLoss = false
-                    }
-                }
                 if (ducked) {
-                    mediaPlayer?.setVolume(1f, 1f)
+                    mediaPlayer?.setVolume(0.7f, 0.7f)
                     ducked = false
+                }
+                if (pausedDueToLoss) {
+                    mediaPlayer?.let { if (!it.isPlaying) it.start() }
+                    pausedDueToLoss = false
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
@@ -171,34 +177,30 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
                     }
                 }
             }
-            AudioManager.AUDIOFOCUS_LOSS -> {
-                detener()
-            }
+            AudioManager.AUDIOFOCUS_LOSS -> detener()
         }
     }
-    
+
     private fun mostrarNotificacion() {
         val intent = packageManager.getLaunchIntentForPackage(packageName)
         val pendingIntent = PendingIntent.getActivity(
             this, 0, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        
+
         val notification = NotificationCompat.Builder(this, "relajacion_channel")
-            .setContentTitle("Relajación Analógica")
+            .setContentTitle("Relajación")
             .setContentText("Audio reproduciéndose...")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
-        
+
         startForeground(NOTIFICATION_ID, notification)
     }
-    
-    override fun onBind(intent: Intent?): IBinder {
-        return binder
-    }
-    
+
+    override fun onBind(intent: Intent?): IBinder = binder
+
     inner class AudioPlayerBinder : Binder() {
         fun getService(): AudioPlayerService = this@AudioPlayerService
     }

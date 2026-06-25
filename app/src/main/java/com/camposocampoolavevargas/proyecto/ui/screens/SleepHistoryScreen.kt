@@ -91,6 +91,16 @@ private fun mesAbreviado(numeroMes: String): String = when (numeroMes) {
     else -> "---"
 }
 
+// ✅ FUNCIÓN AGREGADA — resuelve "Unresolved reference 'formatShortDate'"
+private fun formatShortDate(date: String): String {
+    // date viene en formato "YYYY-MM-DD"
+    val partes = date.split("-")
+    val dia  = partes.getOrNull(2) ?: "--"
+    val mes  = mesAbreviado(partes.getOrNull(1) ?: "")
+    val anio = partes.getOrNull(0) ?: ""
+    return "$dia $mes $anio"
+}
+
 // ─────────────────────────────────────────────────────────────
 // PANTALLA PRINCIPAL — Historial de Sueño (RF03)
 // ─────────────────────────────────────────────────────────────
@@ -119,10 +129,10 @@ fun HistorialTabContent(
     val promedio  = if (barData.isNotEmpty()) barData.average() else 0.0
 
     val dateRangeText = if (registros.isNotEmpty()) {
-        val latestRecord = registros.first()
+        val latestRecord   = registros.first()
         val earliestRecord = registros.last()
         val formattedStart = formatShortDate(earliestRecord.date)
-        val formattedEnd = formatShortDate(latestRecord.date)
+        val formattedEnd   = formatShortDate(latestRecord.date)
         if (formattedStart == formattedEnd) formattedStart else "$formattedStart - $formattedEnd"
     } else {
         "Sin registros"
@@ -485,7 +495,7 @@ fun SleepHistoryItemCard(
                     }
                     Icon(
                         imageVector = if (expandida) Icons.Default.KeyboardArrowUp
-                                      else Icons.Default.KeyboardArrowDown,
+                        else Icons.Default.KeyboardArrowDown,
                         contentDescription = if (expandida) "Contraer" else "Expandir",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
@@ -530,7 +540,7 @@ fun SleepHistoryItemCard(
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = if (cumpleMeta) "✅ Cumpliste la meta de 7h esta noche."
-                               else "⚠️ No alcanzaste las 7h recomendadas.",
+                        else "⚠️ No alcanzaste las 7h recomendadas.",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (cumpleMeta) Color(0xFF3FB950) else Color(0xFFE3B341),
                         fontWeight = FontWeight.Medium

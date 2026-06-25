@@ -18,6 +18,8 @@ import com.camposocampoolavevargas.proyecto.ui.screens.SleepHistoryScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.SleepLogScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.StreaksScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.WeeklyGoalsScreen
+import com.camposocampoolavevargas.proyecto.ui.screens.DiarioScreen
+import com.camposocampoolavevargas.proyecto.ui.screens.RelajacionScreen
 
 /**
  * Main App Navigation Host defining the application routing graph.
@@ -55,6 +57,7 @@ fun AppNavigation(startDestination: String? = null) {
         composable(Screen.AlarmCalculator.route) { AlarmCalculatorScreen(navController) }
         composable(Screen.DisconnectReminder.route) { DisconnectReminderScreen(navController) }
         composable(Screen.Journal.route) { JournalScreen(navController) }
+        composable(Screen.Diario.route) { DiarioScreen(navController) }
         composable(Screen.RelaxLibrary.route) {
             val context = androidx.compose.ui.platform.LocalContext.current
             val userSession = androidx.compose.runtime.remember {
@@ -67,7 +70,7 @@ fun AppNavigation(startDestination: String? = null) {
                 }
             } else {
                 val viewModel: com.camposocampoolavevargas.proyecto.relajacion.ui.viewmodel.RelajacionViewModel = androidx.hilt.navigation.compose.hiltViewModel()
-                com.camposocampoolavevargas.proyecto.relajacion.ui.screens.RelajacionScreen(
+                RelajacionScreen(
                     viewModel = viewModel,
                     userId = userId,
                     onSessionCompleted = { 
