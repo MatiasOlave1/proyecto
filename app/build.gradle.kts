@@ -78,6 +78,9 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
+    //Responsive
+    // WindowSizeClass para responsive
+    implementation("androidx.compose.material3:material3-window-size-class:1.3.2")
     // WorkManager + Hilt WorkManager (SPEC-07 — AutoEliminarWorker)
     implementation(libs.work.runtime.ktx)
     implementation(libs.hilt.work)

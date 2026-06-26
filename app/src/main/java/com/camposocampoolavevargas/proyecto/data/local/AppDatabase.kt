@@ -42,6 +42,7 @@ import com.camposocampoolavevargas.proyecto.diario.data.local.dao.EntradaDiarioD
         SesionRelajacionEntity::class,
         EntradaDiarioEntity::class
     ],
+   
     version = 5,
     exportSchema = true
 )
@@ -114,10 +115,12 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "dormibienU_database"
                 )
-                .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
-                .build()
-                INSTANCE = instance
-                instance
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
+                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigrationOnDowngrade()
+                    .build()
+                    INSTANCE = instance
+                    instance
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.camposocampoolavevargas.proyecto.navigation
 
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -13,7 +14,6 @@ import com.camposocampoolavevargas.proyecto.ui.screens.HomeScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.JournalScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.LoginScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.RegisterScreen
-import com.camposocampoolavevargas.proyecto.ui.screens.RelaxLibraryScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.SleepHistoryScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.SleepLogScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.StreaksScreen
@@ -21,12 +21,11 @@ import com.camposocampoolavevargas.proyecto.ui.screens.WeeklyGoalsScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.DiarioScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.RelajacionScreen
 
-/**
- * Main App Navigation Host defining the application routing graph.
- * Configured to start at [Screen.Login] and maps all 14 screens.
- */
 @Composable
-fun AppNavigation(startDestination: String? = null) {
+fun AppNavigation(
+    startDestination: String? = null,
+    windowSizeClass: WindowSizeClass
+) {
     val navController = rememberNavController()
 
     NavHost(
@@ -38,7 +37,7 @@ fun AppNavigation(startDestination: String? = null) {
         composable(Screen.Register.route) { RegisterScreen(navController) }
 
         // Main Hub
-        composable(Screen.Home.route) { HomeScreen(navController) }
+        composable(Screen.Home.route) { HomeScreen(navController, windowSizeClass) }
 
         // Tracking
         composable(Screen.SleepLog.route) { SleepLogScreen(navController) }
@@ -50,7 +49,7 @@ fun AppNavigation(startDestination: String? = null) {
         composable(Screen.Streaks.route) { StreaksScreen(navController) }
 
         // Analytics
-        composable(Screen.Dashboard.route) { DashboardScreen(navController) }
+        composable(Screen.Dashboard.route) { DashboardScreen(navController, windowSizeClass) }
         composable(Screen.CircadianAlert.route) { CircadianAlertScreen(navController) }
 
         // Wellness
@@ -61,7 +60,10 @@ fun AppNavigation(startDestination: String? = null) {
         composable(Screen.RelaxLibrary.route) {
             val context = androidx.compose.ui.platform.LocalContext.current
             val userSession = androidx.compose.runtime.remember {
-                dagger.hilt.android.EntryPointAccessors.fromApplication(context, AppNavigationEntryPoint::class.java).userSession()
+                dagger.hilt.android.EntryPointAccessors.fromApplication(
+                    context,
+                    AppNavigationEntryPoint::class.java
+                ).userSession()
             }
             val userId = userSession.getActiveUserId()
             if (userId == null) {
@@ -90,4 +92,3 @@ fun AppNavigation(startDestination: String? = null) {
 interface AppNavigationEntryPoint {
     fun userSession(): com.camposocampoolavevargas.proyecto.data.local.UserSession
 }
-
