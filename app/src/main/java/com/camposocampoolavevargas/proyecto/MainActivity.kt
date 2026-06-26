@@ -14,13 +14,21 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import com.camposocampoolavevargas.proyecto.data.repository.SyncCoordinator
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+    @Inject
+    lateinit var syncCoordinator: SyncCoordinator
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Start monitoring connection and triggering background sync
+        syncCoordinator.start()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=

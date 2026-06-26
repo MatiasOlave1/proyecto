@@ -48,16 +48,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.camposocampoolavevargas.proyecto.data.local.entity.StreakDataEntity
 import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
 
 /**
  * Screen for Streaks (RF07 — Seguimiento de rachas).
  * Displays current active streak, historical records, and a calendar log for the current week.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StreaksScreen(
     navController: NavController,
@@ -65,7 +67,24 @@ fun StreaksScreen(
 ) {
     val streakData by viewModel.streakData.collectAsState()
     val weeklyLoggingStatus by viewModel.weeklyLoggingStatus.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
 
+    StreaksScreenContent(
+        navController = navController,
+        isOnline = isOnline,
+        streakData = streakData,
+        weeklyLoggingStatus = weeklyLoggingStatus
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StreaksScreenContent(
+    navController: NavController,
+    isOnline: Boolean,
+    streakData: StreakDataEntity?,
+    weeklyLoggingStatus: List<Boolean>
+) {
     val currentStreak = streakData?.currentStreak ?: 0
     val maxStreak = streakData?.maxStreak ?: 0
 
@@ -87,6 +106,46 @@ fun StreaksScreen(
                                 contentDescription = "Volver",
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
+                        }
+                    },
+                    actions = {
+                        val indicatorColor = if (isOnline) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        val backgroundColor = indicatorColor.copy(alpha = 0.15f)
+                        val statusLabel = if (isOnline) "En línea" else "Modo Offline"
+                        val accessibilityDesc = if (isOnline) "Conectado a internet" else "Sin conexión a internet"
+
+                        Box(
+                            modifier = Modifier
+                                .padding(end = 16.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(backgroundColor)
+                                .border(
+                                    width = 1.dp,
+                                    color = indicatorColor,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .semantics { contentDescription = accessibilityDesc }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .background(
+                                            color = indicatorColor,
+                                            shape = CircleShape
+                                        )
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = statusLabel,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = indicatorColor
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -350,6 +409,16 @@ fun StreaksScreen(
 @Composable
 fun StreaksScreenPreview() {
     DormiBienUTheme {
-        StreaksScreen(navController = rememberNavController())
+        StreaksScreenContent(
+            navController = rememberNavController(),
+            isOnline = false,
+            streakData = StreakDataEntity(
+                userId = "test_user",
+                currentStreak = 5,
+                maxStreak = 10,
+                lastUpdatedDate = "2026-06-24"
+            ),
+            weeklyLoggingStatus = listOf(true, true, false, true, false, false, false)
+        )
     }
 }

@@ -1,9 +1,16 @@
 package com.camposocampoolavevargas.proyecto.ui.screens
 
 import android.content.res.Configuration.UI_MODE_NIGHT_YES
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,17 +27,26 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,53 +54,61 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.foundation.clickable
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.camposocampoolavevargas.proyecto.data.local.model.SleepQuality
+import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
 
-/**
- * Helper function to format ISO date string "YYYY-MM-DD" to short Spanish format "MMM dd"
- */
-private fun formatShortDate(dateStr: String): String {
-    val parts = dateStr.split("-")
-    if (parts.size != 3) return dateStr
-    val day = parts[2]
-    val monthShort = when (parts[1]) {
-        "01" -> "Ene"
-        "02" -> "Feb"
-        "03" -> "Mar"
-        "04" -> "Abr"
-        "05" -> "May"
-        "06" -> "Jun"
-        "07" -> "Jul"
-        "08" -> "Ago"
-        "09" -> "Sep"
-        "10" -> "Oct"
-        "11" -> "Nov"
-        "12" -> "Dic"
-        else -> ""
-    }
-    return "$monthShort $day"
+// --- Paleta de calidad consistente con el resto de la app ---
+private fun colorParaCalidad(calidad: SleepQuality): Color = when (calidad) {
+    SleepQuality.EXCELLENT -> Color(0xFF3FB950)   // Verde
+    SleepQuality.GOOD      -> Color(0xFF58C17A)   // Verde claro
+    SleepQuality.REGULAR   -> Color(0xFFE3B341)   // Amarillo
+    SleepQuality.BAD       -> Color(0xFFF78166)   // Naranja/Rojo
+    SleepQuality.VERY_BAD  -> Color(0xFFDA3633)   // Rojo
 }
 
+private fun emojiParaCalidad(calidad: SleepQuality): String = when (calidad) {
+    SleepQuality.EXCELLENT -> "🌟"
+    SleepQuality.GOOD      -> "😴"
+    SleepQuality.REGULAR   -> "😐"
+    SleepQuality.BAD       -> "😟"
+    SleepQuality.VERY_BAD  -> "😩"
+}
+
+private fun mesAbreviado(numeroMes: String): String = when (numeroMes) {
+    "01" -> "ENE"; "02" -> "FEB"; "03" -> "MAR"; "04" -> "ABR"
+    "05" -> "MAY"; "06" -> "JUN"; "07" -> "JUL"; "08" -> "AGO"
+    "09" -> "SEP"; "10" -> "OCT"; "11" -> "NOV"; "12" -> "DIC"
+    else -> "---"
+}
+
+// ✅ FUNCIÓN AGREGADA — resuelve "Unresolved reference 'formatShortDate'"
+private fun formatShortDate(date: String): String {
+    // date viene en formato "YYYY-MM-DD"
+    val partes = date.split("-")
+    val dia  = partes.getOrNull(2) ?: "--"
+    val mes  = mesAbreviado(partes.getOrNull(1) ?: "")
+    val anio = partes.getOrNull(0) ?: ""
+    return "$dia $mes $anio"
+}
+
+// ─────────────────────────────────────────────────────────────
+// PANTALLA PRINCIPAL — Historial de Sueño (RF03)
+// ─────────────────────────────────────────────────────────────
+
 /**
- * Main content Composable for the Historial tab.
+ * Contenido principal del tab Historial — RF03.
+ * Incluye gráfico de barras de los últimos 7 días y lista cronológica
+ * ordenada DESC, con estética alineada al DormiBienUTheme.
  */
 @Composable
 fun HistorialTabContent(
@@ -96,28 +120,19 @@ fun HistorialTabContent(
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     var filterExpanded by remember { mutableStateOf(false) }
 
-    // Sort oldest to newest for the chart (left to right)
-    val chartRegistros = registros.sortedBy { it.date }
+    LaunchedEffect(Unit) { viewModel.reload() }
 
-    val barData = chartRegistros.map {
-        it.durationMinutes / 60f
-    }
-
-    val labels = chartRegistros.map {
-        it.date.takeLast(2)
-    }
-
-    val promedioHoras =
-        if (barData.isNotEmpty())
-            barData.average()
-        else
-            0.0
+    val ultimos7 = registros.sortedBy { it.date }.takeLast(7)
+    val barData   = ultimos7.map { it.durationMinutes / 60f }
+    val labels    = ultimos7.map { it.date.takeLast(2) }
+    val calidades = ultimos7.map { it.quality }
+    val promedio  = if (barData.isNotEmpty()) barData.average() else 0.0
 
     val dateRangeText = if (registros.isNotEmpty()) {
-        val latestRecord = registros.first()
+        val latestRecord   = registros.first()
         val earliestRecord = registros.last()
         val formattedStart = formatShortDate(earliestRecord.date)
-        val formattedEnd = formatShortDate(latestRecord.date)
+        val formattedEnd   = formatShortDate(latestRecord.date)
         if (formattedStart == formattedEnd) formattedStart else "$formattedStart - $formattedEnd"
     } else {
         "Sin registros"
@@ -131,321 +146,404 @@ fun HistorialTabContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // --- 1. CARD: HISTORIAL MENSUAL (GRAFICO DE BARRAS) ---
+
+        // ── ENCABEZADO ────────────────────────────────────────
+        Text(
+            text = "Historial de Sueño",
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold),
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Text(
+            text = "Tus registros ordenados cronológicamente",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        // ── TARJETA: GRÁFICO DE BARRAS (últimos 7 días) ──────
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(4.dp, RoundedCornerShape(16.dp)),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+                .shadow(8.dp, RoundedCornerShape(20.dp)),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
-            Column(
-                modifier = Modifier.padding(18.dp)
-            ) {
-                // Header of the card
+            Column(modifier = Modifier.padding(20.dp)) {
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val chartTitle = when (selectedFilter) {
-                        HistoryFilter.LAST_7_DAYS -> "Historial - 7 Días"
-                        HistoryFilter.LAST_30_DAYS -> "Historial - 30 Días"
-                        HistoryFilter.ALL -> "Historial Completo"
-                    }
-                    Text(
-                        text = chartTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "X̄ = %.1f hrs".format(promedioHoras),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF58A6FF)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Custom Bar Chart using Canvas
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp)
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val canvasHeight = size.height
-                        val canvasWidth = size.width
-                        val paddingRight = 10.dp.toPx()
-                        val spacing = 12.dp.toPx()
-
-                        if (barData.isNotEmpty()) {
-                            val barWidth = (canvasWidth - paddingRight - (spacing * (barData.size - 1))) / barData.size
-                            val maxVal = 10f // Max sleep hours scale
-
-                            barData.forEachIndexed { index, value ->
-                                val barHeight = (value / maxVal) * (canvasHeight - 20.dp.toPx())
-                                val left = index * (barWidth + spacing)
-                                val top = canvasHeight - 20.dp.toPx() - barHeight
-
-                                // Pick color based on sleep quality (value >= 7h is good/green, otherwise warning/yellow)
-                                val calidad = chartRegistros[index].quality
-
-                                val barColor = when (calidad) {
-                                    SleepQuality.EXCELLENT -> Color(0xFF3FB950)
-                                    SleepQuality.GOOD -> Color(0xFF3FB950)
-                                    SleepQuality.REGULAR -> Color(0xFFE3B341)
-                                    SleepQuality.BAD -> Color.Red
-                                    SleepQuality.VERY_BAD -> Color.Red
-                                }
-                                // Draw rounded bar
-                                drawRoundRect(
-                                    color = barColor,
-                                    topLeft = Offset(left, top),
-                                    size = Size(barWidth, barHeight),
-                                    cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
-                                )
-                            }
-                        }
-
-                        // Draw base guideline
-                        drawLine(
-                            color = Color(0xFF30363D),
-                            start = Offset(0f, canvasHeight - 20.dp.toPx()),
-                            end = Offset(canvasWidth, canvasHeight - 20.dp.toPx()),
-                            strokeWidth = 2f
+                    Column {
+                        Text(
+                            text = "Últimos 7 días",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Horas dormidas por noche",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    // Badge promedio
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF78166).copy(alpha = 0.15f))
+                            .border(1.dp, Color(0xFFF78166).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "X̄ = %.1fh".format(promedio),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFF78166)
+                            )
+                            Text(
+                                text = "promedio",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 9.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
 
-                    // Render bottom label tags positioned under the bars
-                    Row(
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Gráfico de barras con Canvas
+                if (barData.isNotEmpty()) {
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .align(Alignment.BottomStart)
-                            .padding(bottom = 2.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .height(160.dp)
                     ) {
-                        labels.forEachIndexed { idx, label ->
-                            val shouldShowLabel = when {
-                                labels.size <= 7 -> true
-                                labels.size <= 14 -> idx % 2 == 0
-                                labels.size <= 31 -> idx % 5 == 0 || idx == labels.size - 1
-                                else -> idx % 10 == 0 || idx == labels.size - 1
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val h          = size.height
+                            val w          = size.width
+                            val bottomPad  = 24.dp.toPx()
+                            val spacing    = 10.dp.toPx()
+                            val barW       = (w - spacing * (barData.size - 1)) / barData.size
+                            val maxVal     = 10f
+                            val chartH     = h - bottomPad
+
+                            // Línea de referencia 8h (meta recomendada)
+                            val ref8h = chartH - (8f / maxVal) * chartH
+                            drawLine(
+                                color = Color(0xFFF78166).copy(alpha = 0.3f),
+                                start = Offset(0f, ref8h),
+                                end = Offset(w, ref8h),
+                                strokeWidth = 1.5f,
+                                pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
+                                    floatArrayOf(8f, 6f)
+                                )
+                            )
+
+                            barData.forEachIndexed { i, value ->
+                                val barH    = (value / maxVal) * chartH
+                                val left    = i * (barW + spacing)
+                                val top     = chartH - barH
+                                val calidad = calidades[i]
+                                val barColor = colorParaCalidad(calidad)
+
+                                drawRoundRect(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(barColor, barColor.copy(alpha = 0.6f)),
+                                        startY = top,
+                                        endY = chartH
+                                    ),
+                                    topLeft = Offset(left, top),
+                                    size = Size(barW, barH),
+                                    cornerRadius = CornerRadius(6.dp.toPx())
+                                )
                             }
-                            if (shouldShowLabel) {
+
+                            // Línea base
+                            drawLine(
+                                color = Color(0xFF30363D),
+                                start = Offset(0f, chartH),
+                                end = Offset(w, chartH),
+                                strokeWidth = 1.5f
+                            )
+                        }
+
+                        // Etiquetas de días
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.BottomStart),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            labels.forEach { label ->
                                 Text(
                                     text = label,
                                     fontSize = 10.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.width(26.dp),
+                                    modifier = Modifier.weight(1f),
                                     textAlign = TextAlign.Center
                                 )
-                            } else {
-                                Spacer(modifier = Modifier.width(26.dp))
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Leyenda de referencia
+                    Row(
+                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF78166).copy(alpha = 0.4f))
+                                .align(Alignment.CenterVertically)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Meta: 8h",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    EmptyStateChart()
                 }
             }
         }
 
-        // --- 2. CARD: FILTRO SELECTOR ---
-        Box {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, Color(0xFF30363D), RoundedCornerShape(12.dp))
-                    .clickable { filterExpanded = true }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${selectedFilter.displayName} ($dateRangeText)",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 13.sp
-                )
-                Icon(
-                    imageVector = Icons.Default.ArrowDropDown,
-                    contentDescription = "Desplegar",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        // ── ENCABEZADO SECCIÓN LISTA ──────────────────────────
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Registros Recientes",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "${registros.size} entradas",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
-            DropdownMenu(
-                expanded = filterExpanded,
-                onDismissRequest = { filterExpanded = false },
-                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-            ) {
-                HistoryFilter.values().forEach { filter ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = filter.displayName,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        },
-                        onClick = {
-                            viewModel.setFilter(filter)
-                            filterExpanded = false
-                        }
+        // ── LISTA CRONOLÓGICA ─────────────────────────────────
+        if (registros.isEmpty()) {
+            EmptyStateList()
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                registros.forEach { registro ->
+                    val partes     = registro.date.split("-")
+                    val dia        = partes.getOrNull(2) ?: "--"
+                    val mes        = mesAbreviado(partes.getOrNull(1) ?: "")
+                    val anio       = partes.getOrNull(0) ?: ""
+                    val horas      = registro.durationMinutes / 60.0
+                    val color      = colorParaCalidad(registro.quality)
+                    val emoji      = emojiParaCalidad(registro.quality)
+                    val cumpleMeta = horas >= 7
+
+                    SleepHistoryItemCard(
+                        dia = dia,
+                        mes = mes,
+                        anio = anio,
+                        horas = "%.1fh".format(horas),
+                        calidad = registro.quality.displayName,
+                        colorCalidad = color,
+                        emoji = emoji,
+                        cumpleMeta = cumpleMeta
                     )
                 }
             }
         }
 
-        // --- 3. SLEEP LOG LIST ---
-        Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            registros.forEach { registro ->
-
-                val horasDormidas = registro.durationMinutes / 60.0
-
-                val colorCalidad = when (registro.quality) {
-                    SleepQuality.EXCELLENT -> Color(0xFF3FB950)
-                    SleepQuality.GOOD -> Color(0xFF3FB950)
-                    SleepQuality.REGULAR -> Color(0xFFE3B341)
-                    SleepQuality.BAD -> Color.Red
-                    SleepQuality.VERY_BAD -> Color.Red
-                }
-
-                val fechaPartes = registro.date.split("-")
-
-                val dia = fechaPartes[2]
-
-                val mes = when (fechaPartes[1]) {
-                    "01" -> "ENE"
-                    "02" -> "FEB"
-                    "03" -> "MAR"
-                    "04" -> "ABR"
-                    "05" -> "MAY"
-                    "06" -> "JUN"
-                    "07" -> "JUL"
-                    "08" -> "AGO"
-                    "09" -> "SEP"
-                    "10" -> "OCT"
-                    "11" -> "NOV"
-                    "12" -> "DIC"
-                    else -> "--"
-                }
-
-                HistoryItemRow(
-                    month = mes,
-                    day = dia,
-                    hours = String.format("%.1fh", horasDormidas),
-                    quality = registro.quality.displayName,
-                    qualityColor = colorCalidad,
-                    hasStreak = horasDormidas >= 7
-                )
-            }
-        }
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
+// ─────────────────────────────────────────────────────────────
+// COMPONENTE: Tarjeta de item de historial expandible
+// ─────────────────────────────────────────────────────────────
+
 /**
- * Helper row representation for a single Sleep Log Item.
+ * Tarjeta individual de registro de sueño con expansión animada.
+ * Muestra fecha, horas dormidas, calidad y detalles al expandir.
  */
 @Composable
-fun HistoryItemRow(
-    month: String,
-    day: String,
-    hours: String,
-    quality: String,
-    qualityColor: Color,
-    hasStreak: Boolean
+fun SleepHistoryItemCard(
+    dia: String,
+    mes: String,
+    anio: String,
+    horas: String,
+    calidad: String,
+    colorCalidad: Color,
+    emoji: String,
+    cumpleMeta: Boolean
 ) {
+    var expandida by remember { mutableStateOf(false) }
+    val borderAlpha by animateFloatAsState(
+        targetValue = if (expandida) 0.6f else 0.0f,
+        animationSpec = tween(250),
+        label = "borderAlpha"
+    )
+    val bgColor by animateColorAsState(
+        targetValue = if (expandida)
+            colorCalidad.copy(alpha = 0.05f)
+        else
+            MaterialTheme.colorScheme.surface,
+        animationSpec = tween(250),
+        label = "bgColor"
+    )
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(if (expandida) 6.dp else 2.dp, RoundedCornerShape(16.dp))
+            .then(
+                if (expandida) Modifier.border(1.dp, colorCalidad.copy(alpha = borderAlpha), RoundedCornerShape(16.dp))
+                else Modifier
+            )
+            .clickable { expandida = !expandida },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = bgColor)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Left Date Layout
+        Column(modifier = Modifier.padding(16.dp)) {
+
+            // ── Fila principal ──────────────────────────────
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .width(42.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(vertical = 6.dp)
-                ) {
-                    Text(
-                        text = month.uppercase(),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = day,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    // Bloque de fecha
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .width(48.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = mes,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = dia,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = horas,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = emoji, fontSize = 18.sp)
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = calidad,
+                            fontSize = 13.sp,
+                            color = colorCalidad,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(14.dp))
-
-                // Middle Text Info
-                Column {
-                    Text(
-                        text = hours,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = quality,
-                        fontSize = 12.sp,
-                        color = qualityColor,
-                        fontWeight = FontWeight.SemiBold
+                // Iconos derecha
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (cumpleMeta) {
+                        Text(text = "🔥", fontSize = 16.sp)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(colorCalidad.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (cumpleMeta) "✓" else "–",
+                            color = colorCalidad,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                    Icon(
+                        imageVector = if (expandida) Icons.Default.KeyboardArrowUp
+                        else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (expandida) "Contraer" else "Expandir",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
 
-            // Right Icons (Checkmark and flame)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // ── Sección expandida ───────────────────────────
+            AnimatedVisibility(
+                visible = expandida,
+                enter = expandVertically(animationSpec = tween(250)),
+                exit  = shrinkVertically(animationSpec = tween(200))
             ) {
-                if (hasStreak) {
-                    Text(
-                        text = "🔥",
-                        fontSize = 16.sp
+                Column {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clip(CircleShape)
-                        .background(qualityColor.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        DetailChip(
+                            label = "Calidad",
+                            value = calidad,
+                            color = colorCalidad,
+                            modifier = Modifier.weight(1f)
+                        )
+                        DetailChip(
+                            label = "Duración",
+                            value = horas,
+                            color = if (cumpleMeta) Color(0xFF3FB950) else Color(0xFFE3B341),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "✓",
-                        color = qualityColor,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp
+                        text = if (cumpleMeta) "✅ Cumpliste la meta de 7h esta noche."
+                        else "⚠️ No alcanzaste las 7h recomendadas.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (cumpleMeta) Color(0xFF3FB950) else Color(0xFFE3B341),
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
@@ -454,15 +552,129 @@ fun HistoryItemRow(
 }
 
 /**
- * Standalone Screen wrapper for compatibility.
+ * Chip de detalle reutilizable para la sección expandida.
  */
+@Composable
+private fun DetailChip(
+    label: String,
+    value: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(color.copy(alpha = 0.1f))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+    }
+}
+
+/**
+ * Estado vacío cuando no hay datos para el gráfico.
+ */
+@Composable
+private fun EmptyStateChart() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = "📊", fontSize = 32.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Sin datos aún",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * Estado vacío cuando no hay registros de sueño.
+ */
+@Composable
+private fun EmptyStateList() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = "🌙", fontSize = 48.sp)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Sin registros de sueño",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Comienza registrando el sueño de anoche para ver tu historial aquí.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// WRAPPER — Pantalla standalone con TopAppBar
+// ─────────────────────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SleepHistoryScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Historial de Sueño") }
+                title = {
+                    Text(
+                        text = "Historial de Sueño",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         }
     ) { paddingValues ->
@@ -476,7 +688,11 @@ fun SleepHistoryScreen(navController: NavController) {
     }
 }
 
-@Preview(uiMode = UI_MODE_NIGHT_YES)
+// ─────────────────────────────────────────────────────────────
+// PREVIEW
+// ─────────────────────────────────────────────────────────────
+
+@Preview(uiMode = UI_MODE_NIGHT_YES, showBackground = true, backgroundColor = 0xFF1E293B)
 @Composable
 fun SleepHistoryScreenPreview() {
     DormiBienUTheme {

@@ -15,6 +15,7 @@ import java.util.regex.Pattern
 import javax.inject.Inject
 
 import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
+import com.camposocampoolavevargas.proyecto.UserManager
 
 /**
  * ViewModel for user registration (RF01 - simplified).
@@ -96,6 +97,10 @@ class RegisterViewModel @Inject constructor(
                 val isNetworkError = exception is java.io.IOException || exception?.cause is java.io.IOException
 
                 if (isNetworkError) {
+                    // Save credentials temporarily in memory for background sync
+                    UserManager.correoRegistrado = cleanEmail
+                    UserManager.passwordRegistrada = password
+
                     val newUser = UserEntity(
                         userId = userId,
                         email = cleanEmail,

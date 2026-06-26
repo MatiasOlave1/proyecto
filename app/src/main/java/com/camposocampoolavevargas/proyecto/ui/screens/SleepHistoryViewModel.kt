@@ -83,17 +83,19 @@ class SleepHistoryViewModel @Inject constructor(
         loadRecords()
     }
 
-    fun setFilter(filter: HistoryFilter) {
-        _selectedFilter.value = filter
+    /** Fuerza recarga de registros — invocable desde LaunchedEffect en la UI. */
+    fun reload() {
+        loadRecords()
     }
 
     private fun loadRecords() {
         val userId = userSession.getActiveUserId() ?: return
 
         viewModelScope.launch {
-
-            val registros =
-                sleepRecordDao.getRecordsByUserIdDirect(userId)
+            // Obtener registros ordenados DESC por fecha (más recientes primero)
+            val registros = sleepRecordDao
+                .getRecordsByUserIdDirect(userId)
+                .sortedByDescending { it.date }
 
             _records.value = registros
 
@@ -102,14 +104,9 @@ class SleepHistoryViewModel @Inject constructor(
                     .take(7)
                     .reversed()
                     .map {
-
-                        val fecha =
-                            LocalDate.parse(it.date)
-
+                        val fecha = LocalDate.parse(it.date)
                         SleepBarData(
-                            day = fecha.format(
-                                DateTimeFormatter.ofPattern("dd")
-                            ),
+                            day = fecha.format(DateTimeFormatter.ofPattern("dd")),
                             hours = it.durationMinutes / 60f
                         )
                     }

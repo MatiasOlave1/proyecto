@@ -10,6 +10,7 @@ import com.camposocampoolavevargas.proyecto.data.local.dao.StreakDataDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.UserDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.WeeklyGoalDao
 import com.camposocampoolavevargas.proyecto.relajacion.data.local.dao.SesionRelajacionDao
+import com.camposocampoolavevargas.proyecto.diario.data.local.dao.EntradaDiarioDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -79,6 +80,11 @@ object DatabaseModule {
     @Singleton
     fun provideSesionRelajacionDao(database: AppDatabase): SesionRelajacionDao {
         return database.sesionRelajacionDao()
+    }
+    @Provides
+    @Singleton
+    fun provideEntradaDiarioDao(database: AppDatabase): EntradaDiarioDao {
+        return database.entradaDiarioDao()
     }
 }
 

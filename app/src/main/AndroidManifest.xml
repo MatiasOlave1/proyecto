@@ -6,7 +6,6 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -34,7 +33,6 @@
             </intent-filter>
         </receiver>
 
-        <!--para alarmas inteligentes -->
         <receiver
             android:name=".service.alarm.AlarmReceiver"
             android:enabled="true"
@@ -46,7 +44,6 @@
             android:theme="@style/Theme.Proyecto">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -56,6 +53,7 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
     </application>
 
 </manifest>

@@ -23,6 +23,8 @@ import com.camposocampoolavevargas.proyecto.data.local.entity.UserEntity
 import com.camposocampoolavevargas.proyecto.data.local.entity.WeeklyGoalEntity
 import com.camposocampoolavevargas.proyecto.relajacion.data.local.entity.SesionRelajacionEntity
 import com.camposocampoolavevargas.proyecto.relajacion.data.local.dao.SesionRelajacionDao
+import com.camposocampoolavevargas.proyecto.diario.data.local.entity.EntradaDiarioEntity
+import com.camposocampoolavevargas.proyecto.diario.data.local.dao.EntradaDiarioDao
 
 /**
  * Main Room Database configuration for the DormiBienU application.
@@ -37,10 +39,12 @@ import com.camposocampoolavevargas.proyecto.relajacion.data.local.dao.SesionRela
         AchievementEntity::class,
         JournalEntryEntity::class,
         CircadianAlertEntity::class,
-        SesionRelajacionEntity::class
+        SesionRelajacionEntity::class,
+        EntradaDiarioEntity::class
     ],
-    version = 4,
-    exportSchema = false
+   
+    version = 5,
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -53,6 +57,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun journalEntryDao(): JournalEntryDao
     abstract fun circadianAlertDao(): CircadianAlertDao
     abstract fun sesionRelajacionDao(): SesionRelajacionDao
+    abstract fun entradaDiarioDao(): EntradaDiarioDao
 
     companion object {
         @Volatile
@@ -81,6 +86,26 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         /**
+         * Migration from version 4 to 5: adds entradas_diario table (SPEC-07)
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS entradas_diario (
+                        uuid TEXT PRIMARY KEY NOT NULL,
+                        user_id TEXT NOT NULL,
+                        contenido TEXT NOT NULL,
+                        fecha_entrada TEXT NOT NULL,
+                        auto_eliminar INTEGER NOT NULL,
+                        eliminada INTEGER NOT NULL DEFAULT 0,
+                        creado_en TEXT NOT NULL,
+                        eliminado_en TEXT
+                    )
+                """.trimIndent())
+            }
+        }
+
+        /**
          * Returns the singleton instance of the database, building it if it doesn't exist.
          */
         fun getDatabase(context: Context): AppDatabase {
@@ -90,11 +115,12 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "dormibienU_database"
                 )
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
                     .fallbackToDestructiveMigration()
                     .fallbackToDestructiveMigrationOnDowngrade()
                     .build()
-                INSTANCE = instance
-                instance
+                    INSTANCE = instance
+                    instance
             }
         }
     }

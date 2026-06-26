@@ -18,6 +18,8 @@ import com.camposocampoolavevargas.proyecto.ui.screens.SleepHistoryScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.SleepLogScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.StreaksScreen
 import com.camposocampoolavevargas.proyecto.ui.screens.WeeklyGoalsScreen
+import com.camposocampoolavevargas.proyecto.ui.screens.DiarioScreen
+import com.camposocampoolavevargas.proyecto.ui.screens.RelajacionScreen
 
 @Composable
 fun AppNavigation(
@@ -54,6 +56,7 @@ fun AppNavigation(
         composable(Screen.AlarmCalculator.route) { AlarmCalculatorScreen(navController) }
         composable(Screen.DisconnectReminder.route) { DisconnectReminderScreen(navController) }
         composable(Screen.Journal.route) { JournalScreen(navController) }
+        composable(Screen.Diario.route) { DiarioScreen(navController) }
         composable(Screen.RelaxLibrary.route) {
             val context = androidx.compose.ui.platform.LocalContext.current
             val userSession = androidx.compose.runtime.remember {
@@ -68,11 +71,16 @@ fun AppNavigation(
                     navController.navigate(Screen.Login.route)
                 }
             } else {
-                val viewModel: com.camposocampoolavevargas.proyecto.relajacion.ui.viewmodel.RelajacionViewModel =
-                    androidx.hilt.navigation.compose.hiltViewModel()
-                com.camposocampoolavevargas.proyecto.relajacion.ui.screens.RelajacionScreen(
+                val viewModel: com.camposocampoolavevargas.proyecto.relajacion.ui.viewmodel.RelajacionViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+                RelajacionScreen(
                     viewModel = viewModel,
-                    userId = userId
+                    userId = userId,
+                    onSessionCompleted = { 
+                        navController.popBackStack()
+                    },
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
                 )
             }
         }

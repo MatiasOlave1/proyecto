@@ -28,6 +28,8 @@ sealed class Screen(val route: String) {
     object AlarmCalculator : Screen("alarm_calculator")
     object DisconnectReminder : Screen("disconnect_reminder")
     object Journal : Screen("journal")
+
+    object Diario : Screen("diario")
     object RelaxLibrary : Screen("relax_library")
 }
 

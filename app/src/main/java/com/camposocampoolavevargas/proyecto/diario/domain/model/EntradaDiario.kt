@@ -1,4 +1,4 @@
-package com.dormibienu.app.diario.domain.model
+﻿package com.camposocampoolavevargas.proyecto.diario.domain.model
 
 /**
  * Modelo de dominio puro para una entrada en el Diario de Preocupaciones.
@@ -7,9 +7,9 @@ package com.dormibienu.app.diario.domain.model
 data class EntradaDiario(
     val uuid: String,            // UUID v4 generado en cliente
     val userId: String,          // Identificador del perfil de usuario activo
-    val contenido: String,       // Texto libre sin análisis semántico
+    val contenido: String,       // Texto libre sin anÃ¡lisis semÃ¡ntico
     val fechaEntrada: String,    // ISO 8601 UTC
-    val autoEliminar: Boolean,   // Bandera para purga matutina automática
+    val autoEliminar: Boolean,   // Bandera para purga matutina automÃ¡tica
     val eliminada: Boolean,      // Flag para Soft Delete
     val creadoEn: String,        // ISO 8601 UTC
     val eliminadoEn: String?     // ISO 8601 UTC (null por defecto)

@@ -14,7 +14,9 @@ import com.camposocampoolavevargas.proyecto.ui.BaseViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -23,7 +25,7 @@ import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
 import com.camposocampoolavevargas.proyecto.util.DateUtils
-import com.camposocampoolavevargas.proyecto.data.repository.SyncRepository
+import com.camposocampoolavevargas.proyecto.util.NetworkMonitor
 
 /**
  * ViewModel for the Dashboard Screen.
@@ -34,10 +36,13 @@ class DashboardViewModel @Inject constructor(
     private val weeklyGoalDao: WeeklyGoalDao,
     private val streakDataDao: StreakDataDao,
     private val circadianAlertDao: CircadianAlertDao,
-    private val sleepRecordDao: SleepRecordDao, // ← agregar esto
+    private val sleepRecordDao: SleepRecordDao,
     private val userSession: UserSession,
-    private val syncRepository: SyncRepository
+    private val networkMonitor: NetworkMonitor
 ) : BaseViewModel() {
+
+    val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     private val _currentGoal = MutableStateFlow<WeeklyGoalEntity?>(null)
     val currentGoal: StateFlow<WeeklyGoalEntity?> = _currentGoal
@@ -70,14 +75,6 @@ class DashboardViewModel @Inject constructor(
         loadMonthlyStatistics()
         loadCircadianAlerts()
         loadRecentSleepRecords()
-        triggerSync()
-    }
-
-    private fun triggerSync() {
-        val userId = userSession.getActiveUserId() ?: return
-        viewModelScope.launch {
-            syncRepository.syncAll(userId)
-        }
     }
 
     /**

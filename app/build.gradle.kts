@@ -81,4 +81,8 @@ dependencies {
     //Responsive
     // WindowSizeClass para responsive
     implementation("androidx.compose.material3:material3-window-size-class:1.3.2")
+    // WorkManager + Hilt WorkManager (SPEC-07 — AutoEliminarWorker)
+    implementation(libs.work.runtime.ktx)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.compiler)
 }

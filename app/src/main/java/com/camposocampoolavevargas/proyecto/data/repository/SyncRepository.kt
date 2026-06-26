@@ -15,6 +15,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import com.camposocampoolavevargas.proyecto.data.local.HashUtils
 import com.camposocampoolavevargas.proyecto.util.DateUtils
+import com.camposocampoolavevargas.proyecto.UserManager
 
 @Singleton
 class SyncRepository @Inject constructor(
@@ -434,10 +435,75 @@ class SyncRepository @Inject constructor(
     }
 
     /**
+     * Ensures that a locally registered user is registered or logged in on the remote server
+     * so that a valid Sanctum token is active.
+     * Returns true if session is synced successfully, false otherwise.
+     */
+    suspend fun ensureUserSessionSynced(userId: String): Boolean = withContext(Dispatchers.IO) {
+        if (!userSession.getToken().isNullOrEmpty()) {
+            return@withContext true
+        }
+
+        val userEntity = userDao.getUserByIdDirect(userId) ?: return@withContext false
+        val plainPassword = UserManager.passwordRegistrada
+
+        // If the plain password is not available in memory, we cannot register/login on the remote server
+        if (plainPassword.isEmpty()) {
+            Log.w(tag, "Aborting ensureUserSessionSynced: Plaintext password is not available in memory.")
+            return@withContext false
+        }
+
+        try {
+            // Attempt to register the offline user on the server
+            val registerRequest = RegisterRequest(
+                id = userEntity.userId,
+                email = userEntity.email,
+                password = plainPassword,
+                phone = userEntity.phone,
+                name = userEntity.name,
+                birthDate = userEntity.birthDate,
+                region = userEntity.region,
+                commune = userEntity.commune,
+                university = userEntity.university,
+                career = userEntity.career
+            )
+            val regResponse = apiService.register(registerRequest)
+            if (regResponse.isSuccessful && regResponse.body() != null) {
+                val authData = regResponse.body()!!
+                userSession.saveToken(authData.accessToken)
+                Log.d(tag, "Offline user registered successfully on remote server.")
+                return@withContext true
+            } else {
+                // If registration fails (e.g. email already exists), attempt silent login
+                Log.d(tag, "Registration failed, attempting silent login.")
+                val loginRequest = LoginRequest(userEntity.email, plainPassword)
+                val logResponse = apiService.login(loginRequest)
+                if (logResponse.isSuccessful && logResponse.body() != null) {
+                    val authData = logResponse.body()!!
+                    userSession.saveToken(authData.accessToken)
+                    Log.d(tag, "Offline user logged in silently on remote server.")
+                    return@withContext true
+                } else {
+                    Log.e(tag, "Silent login failed for offline user: ${logResponse.errorBody()?.string()}")
+                    return@withContext false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Error in ensureUserSessionSynced", e)
+            return@withContext false
+        }
+    }
+
+    /**
      * Syncs all data in order (first credentials, then sleep, goals, streaks, achievements).
      */
     suspend fun syncAll(userId: String) {
         try {
+            val sessionSynced = ensureUserSessionSynced(userId)
+            if (!sessionSynced) {
+                Log.w(tag, "Aborting syncAll: User session could not be synced with server.")
+                return
+            }
             syncSleepRecords(userId)
             syncWeeklyGoals(userId)
             syncStreak(userId)

@@ -61,7 +61,7 @@ class DisconnectReminderViewModel @Inject constructor(
 
     private fun loadWeeklyGoal() {
         val (week, year) = DateUtils.getIsoWeekYear()
-        val userId = userSession.getActiveUserId() ?: "user123" 
+        val userId = userSession.getActiveUserId() ?: return
         
         viewModelScope.launch {
             weeklyGoalRepository.getCurrentGoal(userId, week, year).collect { goal ->
