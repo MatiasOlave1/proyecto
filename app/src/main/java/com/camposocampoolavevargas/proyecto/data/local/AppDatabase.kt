@@ -122,7 +122,7 @@ abstract class AppDatabase : RoomDatabase() {
                     INSTANCE = instance
                     instance
             }
-        }
+        }   
     }
 }
 

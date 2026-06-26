@@ -1,54 +1,66 @@
 package com.camposocampoolavevargas.proyecto
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import com.camposocampoolavevargas.proyecto.data.repository.SyncCoordinator
 import com.camposocampoolavevargas.proyecto.navigation.AppNavigation
 import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
 import dagger.hilt.android.AndroidEntryPoint
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
-import com.camposocampoolavevargas.proyecto.data.repository.SyncCoordinator
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     @Inject
     lateinit var syncCoordinator: SyncCoordinator
 
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // Start monitoring connection and triggering background sync
         syncCoordinator.start()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+            if (
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    101
+                )
             }
         }
 
         val navigateTo = intent.getStringExtra("navigate_to")
-        val startRoute = if (navigateTo == "disconnect_reminder") {
-            com.camposocampoolavevargas.proyecto.navigation.Screen.DisconnectReminder.route
-        } else {
-            null
-        }
+        val startRoute =
+            if (navigateTo == "disconnect_reminder") {
+                com.camposocampoolavevargas.proyecto.navigation.Screen.DisconnectReminder.route
+            } else {
+                null
+            }
 
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+        AppCompatDelegate.setDefaultNightMode(
+            AppCompatDelegate.MODE_NIGHT_YES
+        )
 
         setContent {
             DormiBienUTheme {
                 val windowSizeClass = calculateWindowSizeClass(this)
+
                 AppNavigation(
                     startDestination = startRoute,
                     windowSizeClass = windowSizeClass
