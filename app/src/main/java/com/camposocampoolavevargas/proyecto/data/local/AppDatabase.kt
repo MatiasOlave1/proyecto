@@ -40,7 +40,7 @@ import com.camposocampoolavevargas.proyecto.relajacion.data.local.dao.SesionRela
         SesionRelajacionEntity::class
     ],
     version = 4,
-    exportSchema = true
+    exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -90,8 +90,9 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "dormibienU_database"
                 )
-                .addMigrations(MIGRATION_3_4)
-                .build()
+                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigrationOnDowngrade()
+                    .build()
                 INSTANCE = instance
                 instance
             }
