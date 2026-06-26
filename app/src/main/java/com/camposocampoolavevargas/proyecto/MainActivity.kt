@@ -43,7 +43,6 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
-
         val navigateTo = intent.getStringExtra("navigate_to")
         val startRoute =
             if (navigateTo == "disconnect_reminder") {
