@@ -40,7 +40,18 @@ fun AppNavigation(
         composable(Screen.Home.route) { HomeScreen(navController, windowSizeClass) }
 
         // Tracking
-        composable(Screen.SleepLog.route) { SleepLogScreen(navController) }
+        composable(
+            route = Screen.SleepLog.route + "?recordId={recordId}",
+            arguments = listOf(
+                androidx.navigation.navArgument("recordId") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) {
+            SleepLogScreen(navController)
+        }
         composable(Screen.SleepHistory.route) { SleepHistoryScreen(navController) }
 
         // Goals & Gamification

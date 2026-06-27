@@ -2,6 +2,7 @@ package com.camposocampoolavevargas.proyecto.ui.screens
 
 import android.content.Context
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.SavedStateHandle
 import com.camposocampoolavevargas.proyecto.data.local.UserSession
 import com.camposocampoolavevargas.proyecto.data.local.dao.SleepRecordDao
 import com.camposocampoolavevargas.proyecto.data.local.dao.StreakDataDao
@@ -41,8 +42,40 @@ class SleepLogViewModel @Inject constructor(
     private val achievementDao: AchievementDao,
     private val circadianAlertDao: CircadianAlertDao,
     private val userSession: UserSession,
-    private val syncRepository: SyncRepository
+    private val syncRepository: SyncRepository,
+    private val savedStateHandle: SavedStateHandle
 ) : BaseViewModel() {
+
+    private var editingRecordId: String? = null
+    val isEditMode: Boolean
+        get() = editingRecordId != null
+
+    init {
+        val recordId = savedStateHandle.get<String>("recordId")
+        if (recordId != null) {
+            editingRecordId = recordId
+            loadRecordToEdit(recordId)
+        }
+    }
+
+    private fun loadRecordToEdit(rId: String) {
+        viewModelScope.launch {
+            try {
+                val record = sleepRecordDao.getRecordById(rId) ?: return@launch
+                _selectedDate.value = LocalDate.parse(record.date)
+                
+                val zoneId = ZoneId.systemDefault()
+                val sleepDateTime = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(record.sleepTime), zoneId)
+                val wakeDateTime = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(record.wakeTime), zoneId)
+                
+                _sleepTime.value = sleepDateTime.toLocalTime()
+                _wakeTime.value = wakeDateTime.toLocalTime()
+                _quality.value = record.quality
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al cargar registro: ${e.localizedMessage}"
+            }
+        }
+    }
 
     private val _selectedDate = MutableStateFlow(LocalDate.now().minusDays(1))
     val selectedDate: StateFlow<LocalDate> = _selectedDate
@@ -125,13 +158,13 @@ class SleepLogViewModel @Inject constructor(
             try {
                 // Check if a sleep record already exists for this date
                 val existingRecord = sleepRecordDao.getRecordByDateDirect(userId, dateVal.toString())
-                if (existingRecord != null) {
+                if (existingRecord != null && existingRecord.recordId != editingRecordId) {
                     _errorMessage.value = "Ya has registrado tu descanso para este día"
                     return@launch
                 }
 
                 val record = SleepRecordEntity(
-                    recordId = UUID.randomUUID().toString(),
+                    recordId = editingRecordId ?: UUID.randomUUID().toString(),
                     userId = userId,
                     sleepTime = sleepMillis,
                     wakeTime = wakeMillis,
@@ -237,51 +270,7 @@ class SleepLogViewModel @Inject constructor(
      * when a new sleep entry is recorded.
      */
     private suspend fun updateStreakAfterLog(userId: String, logDate: LocalDate) {
-        val dateString = logDate.toString()
-        val currentStreakData = streakDataDao.getStreakByUserDirect(userId)
-
-        // Fetch all sleep records to compute the streak dynamically
-        val allRecords = sleepRecordDao.getRecordsByUserIdDirect(userId)
-        val recordDates = allRecords.mapNotNull { 
-            try { LocalDate.parse(it.date) } catch (e: Exception) { null } 
-        }.toSet()
-
-        val today = LocalDate.now()
-        val yesterday = today.minusDays(1)
-
-        // Dynamic streak calculation: count back from either today or yesterday
-        var anchorDate = when {
-            recordDates.contains(today) -> today
-            recordDates.contains(yesterday) -> yesterday
-            else -> null
-        }
-
-        var calculatedStreak = 0
-        if (anchorDate != null) {
-            while (recordDates.contains(anchorDate)) {
-                calculatedStreak++
-                anchorDate = anchorDate!!.minusDays(1)
-            }
-        }
-
-        if (currentStreakData == null) {
-            val newStreak = StreakDataEntity(
-                userId = userId,
-                currentStreak = calculatedStreak,
-                maxStreak = calculatedStreak,
-                lastUpdatedDate = dateString
-            )
-            syncRepository.saveStreak(newStreak)
-        } else {
-            val newMax = maxOf(calculatedStreak, currentStreakData.maxStreak)
-            val updatedStreak = currentStreakData.copy(
-                currentStreak = calculatedStreak,
-                maxStreak = newMax,
-                lastUpdatedDate = dateString,
-                updatedAt = System.currentTimeMillis()
-            )
-            syncRepository.saveStreak(updatedStreak)
-        }
+        syncRepository.recalculateStreak(userId)
     }
 
     private suspend fun evaluateCircadianAlerts(userId: String) {
@@ -362,6 +351,63 @@ class SleepLogViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    fun generateTestData() {
+        val userId = userSession.getActiveUserId() ?: return
+        viewModelScope.launch {
+            try {
+                val today = LocalDate.now()
+                val qualities = listOf(SleepQuality.GOOD, SleepQuality.EXCELLENT, SleepQuality.REGULAR, SleepQuality.BAD)
+                
+                for (i in 0 until 14) {
+                    val date = today.minusDays(i.toLong() + 1) // De ayer hacia atrás
+                    val dateStr = date.toString()
+                    
+                    // Comprobar si ya existe registro para esta fecha
+                    val existing = sleepRecordDao.getRecordByDateDirect(userId, dateStr)
+                    if (existing == null) {
+                        // Generar horas de acostarse y despertarse aleatorias
+                        // Acostarse entre las 22:00 y 00:30
+                        val sleepHour = if (Math.random() > 0.5) 22 else 23
+                        val sleepMinute = (Math.random() * 60).toInt()
+                        
+                        // Despertarse entre las 06:30 y 08:30
+                        val wakeHour = 6 + (Math.random() * 3).toInt()
+                        val wakeMinute = (Math.random() * 60).toInt()
+                        
+                        val sleepDateTime = LocalDateTime.of(date.minusDays(1), LocalTime.of(sleepHour, sleepMinute))
+                        val wakeDateTime = LocalDateTime.of(date, LocalTime.of(wakeHour, wakeMinute))
+                        
+                        val zoneId = ZoneId.systemDefault()
+                        val sleepMillis = sleepDateTime.atZone(zoneId).toInstant().toEpochMilli()
+                        val wakeMillis = wakeDateTime.atZone(zoneId).toInstant().toEpochMilli()
+                        
+                        val durationMinutes = ((wakeMillis - sleepMillis) / (1000 * 60)).toInt()
+                        
+                        val record = SleepRecordEntity(
+                            recordId = UUID.randomUUID().toString(),
+                            userId = userId,
+                            sleepTime = sleepMillis,
+                            wakeTime = wakeMillis,
+                            quality = qualities.shuffled().first(),
+                            date = dateStr,
+                            syncStatus = SyncStatus.PENDING
+                        ).copy(durationMinutes = durationMinutes)
+                        syncRepository.saveSleepRecord(record)
+                    }
+                }
+                
+                // Actualizar racha y alertas circadianas al terminar
+                updateStreakAfterLog(userId, today.minusDays(1))
+                evaluateCircadianAlerts(userId)
+                evaluateAchievementsAfterLog(userId)
+                
+                _isSaveSuccessful.value = true
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al generar datos de prueba: ${e.localizedMessage}"
+            }
         }
     }
 

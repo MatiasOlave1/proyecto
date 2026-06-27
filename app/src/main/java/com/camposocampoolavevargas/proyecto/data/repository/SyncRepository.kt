@@ -11,6 +11,9 @@ import com.camposocampoolavevargas.proyecto.data.remote.model.*
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.camposocampoolavevargas.proyecto.data.local.HashUtils
@@ -29,13 +32,15 @@ class SyncRepository @Inject constructor(
     private val userSession: UserSession
 ) {
     private val tag = "SyncRepository"
+    private val externalScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     /**
      * Authenticates a user on the Laravel API, saves credentials locally, and stores the Sanctum token.
      */
     suspend fun login(emailOrPhone: String, password: String): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.login(LoginRequest(emailOrPhone, password))
+            val hashedPassword = HashUtils.hashPassword(password)
+            val response = apiService.login(LoginRequest(emailOrPhone, hashedPassword))
             if (response.isSuccessful && response.body() != null) {
                 val authData = response.body()!!
                 
@@ -117,30 +122,29 @@ class SyncRepository @Inject constructor(
         }
     }
 
-    /**
-     * Saves a sleep record locally as PENDING, and immediately attempts to sync to API.
-     */
     suspend fun saveSleepRecord(record: SleepRecordEntity) = withContext(Dispatchers.IO) {
         // Insert locally first
         sleepRecordDao.insertRecord(record.copy(syncStatus = SyncStatus.PENDING))
 
-        // Sync immediately
-        try {
-            val dto = SleepRecordDto(
-                id = record.recordId,
-                sleepTime = record.sleepTime,
-                wakeTime = record.wakeTime,
-                durationMinutes = record.durationMinutes,
-                quality = record.quality,
-                date = record.date
-            )
-            val response = apiService.saveSleepRecord(dto)
-            if (response.isSuccessful) {
-                sleepRecordDao.insertRecord(record.copy(syncStatus = SyncStatus.SYNCED))
-                Log.d(tag, "Sleep record synced successfully: ${record.recordId}")
+        // Sync immediately in background
+        externalScope.launch {
+            try {
+                val dto = SleepRecordDto(
+                    id = record.recordId,
+                    sleepTime = record.sleepTime,
+                    wakeTime = record.wakeTime,
+                    durationMinutes = record.durationMinutes,
+                    quality = record.quality,
+                    date = record.date
+                )
+                val response = apiService.saveSleepRecord(dto)
+                if (response.isSuccessful) {
+                    sleepRecordDao.insertRecord(record.copy(syncStatus = SyncStatus.SYNCED))
+                    Log.d(tag, "Sleep record synced successfully in background: ${record.recordId}")
+                }
+            } catch (e: Exception) {
+                Log.w(tag, "Failed to sync sleep record in background: ${record.recordId}, kept as PENDING", e)
             }
-        } catch (e: Exception) {
-            Log.w(tag, "Failed to sync sleep record: ${record.recordId}, kept as PENDING", e)
         }
     }
 
@@ -210,23 +214,22 @@ class SyncRepository @Inject constructor(
         }
     }
 
-    /**
-     * Saves a weekly goal locally and pushes to API.
-     */
     suspend fun saveWeeklyGoal(goal: WeeklyGoalEntity) = withContext(Dispatchers.IO) {
         weeklyGoalDao.insertGoal(goal)
-        try {
-            val dto = WeeklyGoalDto(
-                id = goal.goalId,
-                isoWeek = goal.isoWeek,
-                isoYear = goal.isoYear,
-                minHours = goal.minHours,
-                requiredDays = goal.requiredDays,
-                bedtimeLimitMillis = goal.bedtimeLimitMillis
-            )
-            apiService.saveWeeklyGoal(dto)
-        } catch (e: Exception) {
-            Log.w(tag, "Error syncing weekly goal, saved locally only", e)
+        externalScope.launch {
+            try {
+                val dto = WeeklyGoalDto(
+                    id = goal.goalId,
+                    isoWeek = goal.isoWeek,
+                    isoYear = goal.isoYear,
+                    minHours = goal.minHours,
+                    requiredDays = goal.requiredDays,
+                    bedtimeLimitMillis = goal.bedtimeLimitMillis
+                )
+                apiService.saveWeeklyGoal(dto)
+            } catch (e: Exception) {
+                Log.w(tag, "Error syncing weekly goal, saved locally only", e)
+            }
         }
     }
 
@@ -282,9 +285,6 @@ class SyncRepository @Inject constructor(
         }
     }
 
-    /**
-     * Saves achievements locally and pushes to API.
-     */
     suspend fun saveAchievement(achievement: AchievementEntity) = withContext(Dispatchers.IO) {
         achievementDao.insertAchievement(achievement)
         if (achievement.unlocked) {
@@ -295,17 +295,19 @@ class SyncRepository @Inject constructor(
                 achievement.unlockedAt ?: System.currentTimeMillis(),
                 achievement.points
             )
-            try {
-                val dto = AchievementDto(
-                    id = achievement.achievementId,
-                    type = achievement.type,
-                    unlocked = achievement.unlocked,
-                    unlockedAt = achievement.unlockedAt,
-                    points = achievement.points
-                )
-                apiService.unlockAchievement(dto)
-            } catch (e: Exception) {
-                Log.w(tag, "Error syncing achievement unlock", e)
+            externalScope.launch {
+                try {
+                    val dto = AchievementDto(
+                        id = achievement.achievementId,
+                        type = achievement.type,
+                        unlocked = achievement.unlocked,
+                        unlockedAt = achievement.unlockedAt,
+                        points = achievement.points
+                    )
+                    apiService.unlockAchievement(dto)
+                } catch (e: Exception) {
+                    Log.w(tag, "Error syncing achievement unlock", e)
+                }
             }
         }
     }
@@ -362,20 +364,19 @@ class SyncRepository @Inject constructor(
         }
     }
 
-    /**
-     * Saves streak data locally and pushes to API.
-     */
     suspend fun saveStreak(streak: StreakDataEntity) = withContext(Dispatchers.IO) {
         streakDataDao.insertOrUpdateStreak(streak)
-        try {
-            val dto = StreakDataDto(
-                currentStreak = streak.currentStreak,
-                maxStreak = streak.maxStreak,
-                lastUpdatedDate = streak.lastUpdatedDate
-            )
-            apiService.saveStreak(dto)
-        } catch (e: Exception) {
-            Log.w(tag, "Error syncing streak data", e)
+        externalScope.launch {
+            try {
+                val dto = StreakDataDto(
+                    currentStreak = streak.currentStreak,
+                    maxStreak = streak.maxStreak,
+                    lastUpdatedDate = streak.lastUpdatedDate
+                )
+                apiService.saveStreak(dto)
+            } catch (e: Exception) {
+                Log.w(tag, "Error syncing streak data", e)
+            }
         }
     }
 
@@ -433,6 +434,88 @@ class SyncRepository @Inject constructor(
             Log.e(tag, "Error pulling streak data", e)
         }
     }
+
+    /**
+     * Recalculates current and max streaks dynamically based on the local sleep records database.
+     * Keeps local and remote cache perfectly updated.
+     */
+    suspend fun recalculateStreak(userId: String) = withContext(Dispatchers.IO) {
+        val allRecords = sleepRecordDao.getRecordsByUserIdDirect(userId)
+        if (allRecords.isEmpty()) {
+            val newStreak = StreakDataEntity(userId, 0, 0, "")
+            saveStreak(newStreak)
+            return@withContext
+        }
+
+        val recordDates = allRecords.map { it.date }.toSet()
+        val today = java.time.LocalDate.now()
+
+        // Count current streak starting from the active contiguous block of records
+        var checkDate = today
+        // Look forward from today to find any future contiguous logs (e.g. timezone variations or early logs)
+        while (recordDates.contains(checkDate.toString())) {
+            checkDate = checkDate.plusDays(1)
+        }
+        val streakEnd = checkDate.minusDays(1)
+
+        var currentStreak = 0
+        if (recordDates.contains(streakEnd.toString())) {
+            var curr = streakEnd
+            while (recordDates.contains(curr.toString())) {
+                currentStreak++
+                curr = curr.minusDays(1)
+            }
+        }
+
+        // Calculate max streak historically
+        val sortedDates = recordDates.mapNotNull { 
+            try { java.time.LocalDate.parse(it) } catch(e: Exception) { null } 
+        }.sorted()
+
+        var maxStreak = 0
+        var tempStreak = 0
+        var prevDate: java.time.LocalDate? = null
+        for (date in sortedDates) {
+            if (prevDate == null) {
+                tempStreak = 1
+            } else if (date == prevDate.plusDays(1)) {
+                tempStreak++
+            } else if (date != prevDate) {
+                tempStreak = 1
+            }
+            if (tempStreak > maxStreak) {
+                maxStreak = tempStreak
+            }
+            prevDate = date
+        }
+
+        if (currentStreak > maxStreak) {
+            maxStreak = currentStreak
+        }
+
+        val lastUpdatedDate = allRecords.sortedBy { it.date }.lastOrNull()?.date ?: ""
+        val currentStreakData = streakDataDao.getStreakByUserDirect(userId)
+
+        val newStreak = if (currentStreakData == null) {
+            StreakDataEntity(
+                userId = userId,
+                currentStreak = currentStreak,
+                maxStreak = maxStreak,
+                lastUpdatedDate = lastUpdatedDate
+            )
+        } else {
+            currentStreakData.copy(
+                currentStreak = currentStreak,
+                maxStreak = maxOf(maxStreak, currentStreakData.maxStreak),
+                lastUpdatedDate = lastUpdatedDate,
+                updatedAt = System.currentTimeMillis()
+            )
+        }
+
+        Log.d("StreakUpdate", "Recalculated streak dynamically - current: $currentStreak, max: $maxStreak")
+        saveStreak(newStreak)
+    }
+
 
     /**
      * Ensures that a locally registered user is registered or logged in on the remote server
@@ -507,6 +590,7 @@ class SyncRepository @Inject constructor(
             syncSleepRecords(userId)
             syncWeeklyGoals(userId)
             syncStreak(userId)
+            recalculateStreak(userId)
             syncAchievements(userId)
         } catch (e: Exception) {
             Log.e(tag, "Error in general syncAll", e)

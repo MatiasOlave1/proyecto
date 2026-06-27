@@ -17,10 +17,10 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import com.camposocampoolavevargas.proyecto.data.repository.SyncCoordinator
 import javax.inject.Inject
 
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     @Inject
     lateinit var syncCoordinator: SyncCoordinator
 

@@ -33,7 +33,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.text.font.FontWeight
@@ -56,10 +67,19 @@ fun HomeScreen(
     windowSizeClass: WindowSizeClass,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val selectedTab by viewModel.selectedTab.collectAsState()
+    val userEmail by viewModel.userEmail.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
+
     HomeScreenContent(
         navController = navController,
         windowSizeClass = windowSizeClass,
-        onLogout = { viewModel.logout() }
+        selectedTab = selectedTab,
+        userEmail = userEmail,
+        isSyncing = isSyncing,
+        onTabSelected = { viewModel.selectTab(it) },
+        onLogout = { viewModel.logout() },
+        onSyncClick = { viewModel.forceSync() }
     )
 }
 
@@ -68,9 +88,13 @@ fun HomeScreen(
 fun HomeScreenContent(
     navController: NavController,
     windowSizeClass: WindowSizeClass,
-    onLogout: () -> Unit
+    selectedTab: HomeTab,
+    userEmail: String,
+    isSyncing: Boolean,
+    onTabSelected: (HomeTab) -> Unit,
+    onLogout: () -> Unit,
+    onSyncClick: () -> Unit
 ) {
-    var selectedTab by remember { mutableStateOf(HomeTab.Dashboard) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     val isExpanded = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
@@ -82,7 +106,7 @@ fun HomeScreenContent(
         if (isExpanded) {
             // --- TABLET: NavigationRail lateral ---
             Scaffold(
-                topBar = { HomeTopBar(selectedTab, onProfileClick = { showLogoutDialog = true }) }
+                topBar = { HomeTopBar(selectedTab, userEmail, isSyncing, onSyncClick, onLogoutClick = { showLogoutDialog = true }) }
             ) { paddingValues ->
                 Row(
                     modifier = Modifier
@@ -92,13 +116,13 @@ fun HomeScreenContent(
                     NavigationRail {
                         NavigationRailItem(
                             selected = selectedTab == HomeTab.Dashboard,
-                            onClick = { selectedTab = HomeTab.Dashboard },
+                            onClick = { onTabSelected(HomeTab.Dashboard) },
                             icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
                             label = { Text("Dashboard") }
                         )
                         NavigationRailItem(
                             selected = selectedTab == HomeTab.Noche,
-                            onClick = { selectedTab = HomeTab.Noche },
+                            onClick = { onTabSelected(HomeTab.Noche) },
                             icon = {
                                 MoonIcon(
                                     color = if (selectedTab == HomeTab.Noche)
@@ -111,13 +135,13 @@ fun HomeScreenContent(
                         )
                         NavigationRailItem(
                             selected = selectedTab == HomeTab.Historial,
-                            onClick = { selectedTab = HomeTab.Historial },
+                            onClick = { onTabSelected(HomeTab.Historial) },
                             icon = { Icon(Icons.Default.List, contentDescription = "Historial") },
                             label = { Text("Historial") }
                         )
                         NavigationRailItem(
                             selected = selectedTab == HomeTab.Logros,
-                            onClick = { selectedTab = HomeTab.Logros },
+                            onClick = { onTabSelected(HomeTab.Logros) },
                             icon = { Icon(Icons.Default.Star, contentDescription = "Logros") },
                             label = { Text("Logros") }
                         )
@@ -136,18 +160,18 @@ fun HomeScreenContent(
         } else {
             // --- TELÉFONO: NavigationBar inferior ---
             Scaffold(
-                topBar = { HomeTopBar(selectedTab, onProfileClick = { showLogoutDialog = true }) },
+                topBar = { HomeTopBar(selectedTab, userEmail, isSyncing, onSyncClick, onLogoutClick = { showLogoutDialog = true }) },
                 bottomBar = {
                     NavigationBar {
                         NavigationBarItem(
                             selected = selectedTab == HomeTab.Dashboard,
-                            onClick = { selectedTab = HomeTab.Dashboard },
+                            onClick = { onTabSelected(HomeTab.Dashboard) },
                             icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
                             label = { Text("Dashboard") }
                         )
                         NavigationBarItem(
                             selected = selectedTab == HomeTab.Noche,
-                            onClick = { selectedTab = HomeTab.Noche },
+                            onClick = { onTabSelected(HomeTab.Noche) },
                             icon = {
                                 MoonIcon(
                                     color = if (selectedTab == HomeTab.Noche)
@@ -160,13 +184,13 @@ fun HomeScreenContent(
                         )
                         NavigationBarItem(
                             selected = selectedTab == HomeTab.Historial,
-                            onClick = { selectedTab = HomeTab.Historial },
+                            onClick = { onTabSelected(HomeTab.Historial) },
                             icon = { Icon(Icons.Default.List, contentDescription = "Historial") },
                             label = { Text("Historial") }
                         )
                         NavigationBarItem(
                             selected = selectedTab == HomeTab.Logros,
-                            onClick = { selectedTab = HomeTab.Logros },
+                            onClick = { onTabSelected(HomeTab.Logros) },
                             icon = { Icon(Icons.Default.Star, contentDescription = "Logros") },
                             label = { Text("Logros") }
                         )
@@ -216,7 +240,15 @@ fun HomeScreenContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HomeTopBar(selectedTab: HomeTab, onProfileClick: () -> Unit) {
+private fun HomeTopBar(
+    selectedTab: HomeTab,
+    userEmail: String,
+    isSyncing: Boolean,
+    onSyncClick: () -> Unit,
+    onLogoutClick: () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     TopAppBar(
         title = {
             Text(
@@ -230,13 +262,76 @@ private fun HomeTopBar(selectedTab: HomeTab, onProfileClick: () -> Unit) {
             )
         },
         actions = {
-            IconButton(onClick = onProfileClick) {
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "Perfil",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(28.dp)
-                )
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "Perfil",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    // 1. Email Header
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = userEmail.ifEmpty { "Usuario" },
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
+                        onClick = {},
+                        enabled = false
+                    )
+                    
+                    HorizontalDivider()
+
+                    // 2. Sync Option
+                    DropdownMenuItem(
+                        text = {
+                            Text(if (isSyncing) "Sincronizando..." else "Sincronizar Datos")
+                        },
+                        leadingIcon = {
+                            if (isSyncing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Sincronizar"
+                                )
+                            }
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onSyncClick()
+                        }
+                    )
+
+                    // 3. Logout Option
+                    DropdownMenuItem(
+                        text = {
+                            Text("Cerrar Sesión")
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.ExitToApp,
+                                contentDescription = "Cerrar Sesión"
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onLogoutClick()
+                        }
+                    )
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

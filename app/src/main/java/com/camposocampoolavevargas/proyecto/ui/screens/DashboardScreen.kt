@@ -89,6 +89,7 @@ fun DashboardTabContent(
     LaunchedEffect(Unit) {
         viewModel.loadCurrentGoal()
         viewModel.loadStreakData()
+        viewModel.loadMonthlyStatistics()
         viewModel.loadCircadianAlerts()
         viewModel.loadRecentSleepRecords()
     }
