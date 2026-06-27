@@ -1,0 +1,599 @@
+package com.camposocampoolavevargas.proyecto.data.repository
+
+import android.content.Context
+import android.util.Log
+import com.camposocampoolavevargas.proyecto.data.local.UserSession
+import com.camposocampoolavevargas.proyecto.data.local.dao.*
+import com.camposocampoolavevargas.proyecto.data.local.entity.*
+import com.camposocampoolavevargas.proyecto.data.local.model.SyncStatus
+import com.camposocampoolavevargas.proyecto.data.remote.ApiService
+import com.camposocampoolavevargas.proyecto.data.remote.model.*
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+import javax.inject.Singleton
+import com.camposocampoolavevargas.proyecto.data.local.HashUtils
+import com.camposocampoolavevargas.proyecto.util.DateUtils
+import com.camposocampoolavevargas.proyecto.UserManager
+
+@Singleton
+class SyncRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val apiService: ApiService,
+    private val userDao: UserDao,
+    private val sleepRecordDao: SleepRecordDao,
+    private val weeklyGoalDao: WeeklyGoalDao,
+    private val achievementDao: AchievementDao,
+    private val streakDataDao: StreakDataDao,
+    private val userSession: UserSession
+) {
+    private val tag = "SyncRepository"
+    private val externalScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    /**
+     * Authenticates a user on the Laravel API, saves credentials locally, and stores the Sanctum token.
+     */
+    suspend fun login(emailOrPhone: String, password: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val hashedPassword = HashUtils.hashPassword(password)
+            val response = apiService.login(LoginRequest(emailOrPhone, hashedPassword))
+            if (response.isSuccessful && response.body() != null) {
+                val authData = response.body()!!
+                
+                // Save to local session
+                userSession.login(authData.user.id)
+                userSession.saveToken(authData.accessToken)
+
+                // Save/update user entity locally
+                val userEntity = UserEntity(
+                    userId = authData.user.id,
+                    email = authData.user.email,
+                    passwordHash = HashUtils.hashPassword(password), // Store proper hash for offline auth
+                    phone = authData.user.phone,
+                    name = authData.user.name,
+                    birthDate = authData.user.birthDate,
+                    region = authData.user.region,
+                    commune = authData.user.commune,
+                    university = authData.user.university,
+                    career = authData.user.career
+                )
+                userDao.insertUser(userEntity)
+
+                // Pull and sync remote data
+                syncAll(authData.user.id)
+
+                Result.success(authData.user.id)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Credenciales incorrectas"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Login error", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Registers a new user on the Laravel API, saves user locally, and stores the Sanctum token.
+     */
+    suspend fun register(
+        userId: String,
+        email: String,
+        passwordHash: String,
+        phone: String? = null,
+        name: String? = null
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val request = RegisterRequest(
+                id = userId,
+                email = email,
+                password = passwordHash,
+                phone = phone,
+                name = name
+            )
+            val response = apiService.register(request)
+            if (response.isSuccessful && response.body() != null) {
+                val authData = response.body()!!
+                
+                userSession.login(authData.user.id)
+                userSession.saveToken(authData.accessToken)
+
+                val userEntity = UserEntity(
+                    userId = authData.user.id,
+                    email = authData.user.email,
+                    passwordHash = passwordHash,
+                    phone = authData.user.phone,
+                    name = authData.user.name
+                )
+                userDao.insertUser(userEntity)
+
+                Result.success(authData.user.id)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Error en registro"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Register error", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun saveSleepRecord(record: SleepRecordEntity) = withContext(Dispatchers.IO) {
+        // Insert locally first
+        sleepRecordDao.insertRecord(record.copy(syncStatus = SyncStatus.PENDING))
+
+        // Sync immediately in background
+        externalScope.launch {
+            try {
+                val dto = SleepRecordDto(
+                    id = record.recordId,
+                    sleepTime = record.sleepTime,
+                    wakeTime = record.wakeTime,
+                    durationMinutes = record.durationMinutes,
+                    quality = record.quality,
+                    date = record.date
+                )
+                val response = apiService.saveSleepRecord(dto)
+                if (response.isSuccessful) {
+                    sleepRecordDao.insertRecord(record.copy(syncStatus = SyncStatus.SYNCED))
+                    Log.d(tag, "Sleep record synced successfully in background: ${record.recordId}")
+                }
+            } catch (e: Exception) {
+                Log.w(tag, "Failed to sync sleep record in background: ${record.recordId}, kept as PENDING", e)
+            }
+        }
+    }
+
+    /**
+     * Syncs all pending sleep records to API, and pulls records from API to local storage.
+     */
+    suspend fun syncSleepRecords(userId: String) = withContext(Dispatchers.IO) {
+        // 1. Push pending
+        val pendingRecords = sleepRecordDao.getRecordsByUserIdDirect(userId)
+            .filter { it.syncStatus == SyncStatus.PENDING }
+
+        if (pendingRecords.isNotEmpty()) {
+            try {
+                val dtos = pendingRecords.map {
+                    SleepRecordDto(
+                        id = it.recordId,
+                        sleepTime = it.sleepTime,
+                        wakeTime = it.wakeTime,
+                        durationMinutes = it.durationMinutes,
+                        quality = it.quality,
+                        date = it.date
+                    )
+                }
+                val response = apiService.syncSleepRecords(SleepSyncRequest(dtos))
+                if (response.isSuccessful && response.body() != null) {
+                    val syncedIds = response.body()!!.syncedIds
+                    for (record in pendingRecords) {
+                        if (syncedIds.contains(record.recordId)) {
+                            sleepRecordDao.insertRecord(record.copy(syncStatus = SyncStatus.SYNCED))
+                        }
+                    }
+                    Log.d(tag, "Synced ${syncedIds.size} pending sleep records")
+                }
+            } catch (e: Exception) {
+                Log.e(tag, "Error pushing pending sleep records", e)
+            }
+        }
+
+        // 2. Pull remote records
+        try {
+            val response = apiService.getSleepRecords()
+            if (response.isSuccessful) {
+                val remoteRecords = response.body()
+                if (remoteRecords != null) {
+                    for (dto in remoteRecords) {
+                        if (dto.id == null || dto.date == null) continue
+                        val localRecord = sleepRecordDao.getRecordByDateDirect(userId, dto.date)
+                        if (localRecord == null) {
+                            sleepRecordDao.insertRecord(
+                                SleepRecordEntity(
+                                    recordId = dto.id,
+                                    userId = userId,
+                                    sleepTime = dto.sleepTime,
+                                    wakeTime = dto.wakeTime,
+                                    durationMinutes = dto.durationMinutes,
+                                    quality = dto.quality,
+                                    date = dto.date,
+                                    syncStatus = SyncStatus.SYNCED
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Error pulling sleep records from server", e)
+        }
+    }
+
+    suspend fun saveWeeklyGoal(goal: WeeklyGoalEntity) = withContext(Dispatchers.IO) {
+        weeklyGoalDao.insertGoal(goal)
+        externalScope.launch {
+            try {
+                val dto = WeeklyGoalDto(
+                    id = goal.goalId,
+                    isoWeek = goal.isoWeek,
+                    isoYear = goal.isoYear,
+                    minHours = goal.minHours,
+                    requiredDays = goal.requiredDays,
+                    bedtimeLimitMillis = goal.bedtimeLimitMillis
+                )
+                apiService.saveWeeklyGoal(dto)
+            } catch (e: Exception) {
+                Log.w(tag, "Error syncing weekly goal, saved locally only", e)
+            }
+        }
+    }
+
+    /**
+     * Pulls goals from API and stores them locally.
+     */
+    suspend fun syncWeeklyGoals(userId: String) = withContext(Dispatchers.IO) {
+        // Push local goals
+        val localGoals = weeklyGoalDao.getGoalsByUserIdDirect(userId)
+        if (localGoals.isNotEmpty()) {
+            try {
+                val dtos = localGoals.map {
+                    WeeklyGoalDto(
+                        id = it.goalId,
+                        isoWeek = it.isoWeek,
+                        isoYear = it.isoYear,
+                        minHours = it.minHours,
+                        requiredDays = it.requiredDays,
+                        bedtimeLimitMillis = it.bedtimeLimitMillis
+                    )
+                }
+                apiService.syncWeeklyGoals(GoalSyncRequest(dtos))
+            } catch (e: Exception) {
+                Log.e(tag, "Error syncing local weekly goals", e)
+            }
+        }
+
+        // Pull remote goals
+        try {
+            val (currentWeek, currentYear) = DateUtils.getIsoWeekYear()
+            val response = apiService.getCurrentGoal(currentWeek, currentYear)
+            if (response.isSuccessful) {
+                val dto = response.body()
+                if (dto != null && dto.id != null) {
+                    val existing = weeklyGoalDao.getCurrentGoalDirect(userId, dto.isoWeek, dto.isoYear)
+                    if (existing == null) {
+                        weeklyGoalDao.insertGoal(
+                            WeeklyGoalEntity(
+                                goalId = dto.id,
+                                userId = userId,
+                                isoWeek = dto.isoWeek,
+                                isoYear = dto.isoYear,
+                                minHours = dto.minHours,
+                                requiredDays = dto.requiredDays,
+                                bedtimeLimitMillis = dto.bedtimeLimitMillis
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Error pulling weekly goals", e)
+        }
+    }
+
+    suspend fun saveAchievement(achievement: AchievementEntity) = withContext(Dispatchers.IO) {
+        achievementDao.insertAchievement(achievement)
+        if (achievement.unlocked) {
+            // Also call unlock to update local DB if pre-seeded row already exists
+            achievementDao.unlockAchievement(
+                achievement.userId,
+                achievement.type,
+                achievement.unlockedAt ?: System.currentTimeMillis(),
+                achievement.points
+            )
+            externalScope.launch {
+                try {
+                    val dto = AchievementDto(
+                        id = achievement.achievementId,
+                        type = achievement.type,
+                        unlocked = achievement.unlocked,
+                        unlockedAt = achievement.unlockedAt,
+                        points = achievement.points
+                    )
+                    apiService.unlockAchievement(dto)
+                } catch (e: Exception) {
+                    Log.w(tag, "Error syncing achievement unlock", e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Syncs achievements locally and remotely.
+     */
+    suspend fun syncAchievements(userId: String) = withContext(Dispatchers.IO) {
+        // Push local achievements
+        val localAchievements = achievementDao.getAchievementsByUserIdDirect(userId)
+        if (localAchievements.isNotEmpty()) {
+            try {
+                val dtos = localAchievements.map {
+                    AchievementDto(
+                        id = it.achievementId,
+                        type = it.type,
+                        unlocked = it.unlocked,
+                        unlockedAt = it.unlockedAt,
+                        points = it.points
+                    )
+                }
+                apiService.syncAchievements(AchievementSyncRequest(dtos))
+            } catch (e: Exception) {
+                Log.e(tag, "Error pushing achievements", e)
+            }
+        }
+
+        // Pull achievements
+        try {
+            val response = apiService.getAchievements()
+            if (response.isSuccessful && response.body() != null) {
+                val remoteAchievements = response.body()!!
+                for (dto in remoteAchievements) {
+                    if (dto.id == null) continue
+                    val local = achievementDao.getAchievementByTypeDirect(userId, dto.type)
+                    if (local == null) {
+                        achievementDao.insertAchievement(
+                            AchievementEntity(
+                                achievementId = dto.id,
+                                userId = userId,
+                                type = dto.type,
+                                unlocked = dto.unlocked,
+                                unlockedAt = dto.unlockedAt,
+                                points = dto.points
+                            )
+                        )
+                    } else if (!local.unlocked && dto.unlocked) {
+                        achievementDao.unlockAchievement(userId, dto.type, dto.unlockedAt ?: System.currentTimeMillis(), dto.points)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Error pulling achievements", e)
+        }
+    }
+
+    suspend fun saveStreak(streak: StreakDataEntity) = withContext(Dispatchers.IO) {
+        streakDataDao.insertOrUpdateStreak(streak)
+        externalScope.launch {
+            try {
+                val dto = StreakDataDto(
+                    currentStreak = streak.currentStreak,
+                    maxStreak = streak.maxStreak,
+                    lastUpdatedDate = streak.lastUpdatedDate
+                )
+                apiService.saveStreak(dto)
+            } catch (e: Exception) {
+                Log.w(tag, "Error syncing streak data", e)
+            }
+        }
+    }
+
+    /**
+     * Pulls streak data from API and saves locally.
+     */
+    suspend fun syncStreak(userId: String) = withContext(Dispatchers.IO) {
+        // Push local streak
+        val localStreak = streakDataDao.getStreakByUserDirect(userId)
+        if (localStreak != null) {
+            try {
+                val dto = StreakDataDto(
+                    currentStreak = localStreak.currentStreak,
+                    maxStreak = localStreak.maxStreak,
+                    lastUpdatedDate = localStreak.lastUpdatedDate
+                )
+                apiService.saveStreak(dto)
+            } catch (e: Exception) {
+                Log.e(tag, "Error pushing streak data", e)
+            }
+        }
+
+        // Pull remote streak
+        try {
+            val response = apiService.getStreak()
+            if (response.isSuccessful) {
+                val dto = response.body()
+                if (dto != null && dto.lastUpdatedDate != null) {
+                    val existing = streakDataDao.getStreakByUserDirect(userId)
+                    if (existing == null) {
+                        streakDataDao.insertOrUpdateStreak(
+                            StreakDataEntity(
+                                userId = userId,
+                                currentStreak = dto.currentStreak,
+                                maxStreak = dto.maxStreak,
+                                lastUpdatedDate = dto.lastUpdatedDate
+                            )
+                        )
+                    } else {
+                        val newCurrent = maxOf(dto.currentStreak, existing.currentStreak)
+                        val newMax = maxOf(dto.maxStreak, existing.maxStreak)
+                        if (newCurrent != existing.currentStreak || newMax != existing.maxStreak) {
+                            streakDataDao.insertOrUpdateStreak(
+                                existing.copy(
+                                    currentStreak = newCurrent,
+                                    maxStreak = newMax,
+                                    lastUpdatedDate = dto.lastUpdatedDate
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Error pulling streak data", e)
+        }
+    }
+
+    /**
+     * Recalculates current and max streaks dynamically based on the local sleep records database.
+     * Keeps local and remote cache perfectly updated.
+     */
+    suspend fun recalculateStreak(userId: String) = withContext(Dispatchers.IO) {
+        val allRecords = sleepRecordDao.getRecordsByUserIdDirect(userId)
+        if (allRecords.isEmpty()) {
+            val newStreak = StreakDataEntity(userId, 0, 0, "")
+            saveStreak(newStreak)
+            return@withContext
+        }
+
+        val recordDates = allRecords.map { it.date }.toSet()
+        val today = java.time.LocalDate.now()
+
+        // Count current streak starting from the active contiguous block of records
+        var checkDate = today
+        // Look forward from today to find any future contiguous logs (e.g. timezone variations or early logs)
+        while (recordDates.contains(checkDate.toString())) {
+            checkDate = checkDate.plusDays(1)
+        }
+        val streakEnd = checkDate.minusDays(1)
+
+        var currentStreak = 0
+        if (recordDates.contains(streakEnd.toString())) {
+            var curr = streakEnd
+            while (recordDates.contains(curr.toString())) {
+                currentStreak++
+                curr = curr.minusDays(1)
+            }
+        }
+
+        // Calculate max streak historically
+        val sortedDates = recordDates.mapNotNull { 
+            try { java.time.LocalDate.parse(it) } catch(e: Exception) { null } 
+        }.sorted()
+
+        var maxStreak = 0
+        var tempStreak = 0
+        var prevDate: java.time.LocalDate? = null
+        for (date in sortedDates) {
+            if (prevDate == null) {
+                tempStreak = 1
+            } else if (date == prevDate.plusDays(1)) {
+                tempStreak++
+            } else if (date != prevDate) {
+                tempStreak = 1
+            }
+            if (tempStreak > maxStreak) {
+                maxStreak = tempStreak
+            }
+            prevDate = date
+        }
+
+        if (currentStreak > maxStreak) {
+            maxStreak = currentStreak
+        }
+
+        val lastUpdatedDate = allRecords.sortedBy { it.date }.lastOrNull()?.date ?: ""
+        val currentStreakData = streakDataDao.getStreakByUserDirect(userId)
+
+        val newStreak = if (currentStreakData == null) {
+            StreakDataEntity(
+                userId = userId,
+                currentStreak = currentStreak,
+                maxStreak = maxStreak,
+                lastUpdatedDate = lastUpdatedDate
+            )
+        } else {
+            currentStreakData.copy(
+                currentStreak = currentStreak,
+                maxStreak = maxOf(maxStreak, currentStreakData.maxStreak),
+                lastUpdatedDate = lastUpdatedDate,
+                updatedAt = System.currentTimeMillis()
+            )
+        }
+
+        Log.d("StreakUpdate", "Recalculated streak dynamically - current: $currentStreak, max: $maxStreak")
+        saveStreak(newStreak)
+    }
+
+
+    /**
+     * Ensures that a locally registered user is registered or logged in on the remote server
+     * so that a valid Sanctum token is active.
+     * Returns true if session is synced successfully, false otherwise.
+     */
+    suspend fun ensureUserSessionSynced(userId: String): Boolean = withContext(Dispatchers.IO) {
+        if (!userSession.getToken().isNullOrEmpty()) {
+            return@withContext true
+        }
+
+        val userEntity = userDao.getUserByIdDirect(userId) ?: return@withContext false
+        val plainPassword = UserManager.passwordRegistrada
+
+        // If the plain password is not available in memory, we cannot register/login on the remote server
+        if (plainPassword.isEmpty()) {
+            Log.w(tag, "Aborting ensureUserSessionSynced: Plaintext password is not available in memory.")
+            return@withContext false
+        }
+
+        try {
+            // Attempt to register the offline user on the server
+            val registerRequest = RegisterRequest(
+                id = userEntity.userId,
+                email = userEntity.email,
+                password = plainPassword,
+                phone = userEntity.phone,
+                name = userEntity.name,
+                birthDate = userEntity.birthDate,
+                region = userEntity.region,
+                commune = userEntity.commune,
+                university = userEntity.university,
+                career = userEntity.career
+            )
+            val regResponse = apiService.register(registerRequest)
+            if (regResponse.isSuccessful && regResponse.body() != null) {
+                val authData = regResponse.body()!!
+                userSession.saveToken(authData.accessToken)
+                Log.d(tag, "Offline user registered successfully on remote server.")
+                return@withContext true
+            } else {
+                // If registration fails (e.g. email already exists), attempt silent login
+                Log.d(tag, "Registration failed, attempting silent login.")
+                val loginRequest = LoginRequest(userEntity.email, plainPassword)
+                val logResponse = apiService.login(loginRequest)
+                if (logResponse.isSuccessful && logResponse.body() != null) {
+                    val authData = logResponse.body()!!
+                    userSession.saveToken(authData.accessToken)
+                    Log.d(tag, "Offline user logged in silently on remote server.")
+                    return@withContext true
+                } else {
+                    Log.e(tag, "Silent login failed for offline user: ${logResponse.errorBody()?.string()}")
+                    return@withContext false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Error in ensureUserSessionSynced", e)
+            return@withContext false
+        }
+    }
+
+    /**
+     * Syncs all data in order (first credentials, then sleep, goals, streaks, achievements).
+     */
+    suspend fun syncAll(userId: String) {
+        try {
+            val sessionSynced = ensureUserSessionSynced(userId)
+            if (!sessionSynced) {
+                Log.w(tag, "Aborting syncAll: User session could not be synced with server.")
+                return
+            }
+            syncSleepRecords(userId)
+            syncWeeklyGoals(userId)
+            syncStreak(userId)
+            recalculateStreak(userId)
+            syncAchievements(userId)
+        } catch (e: Exception) {
+            Log.e(tag, "Error in general syncAll", e)
+        }
+    }
+}

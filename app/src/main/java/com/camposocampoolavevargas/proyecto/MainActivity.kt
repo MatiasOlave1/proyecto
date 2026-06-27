@@ -3,45 +3,57 @@ package com.camposocampoolavevargas.proyecto
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.camposocampoolavevargas.proyecto.ui.theme.ProyectoTheme
+import androidx.appcompat.app.AppCompatDelegate
+import com.camposocampoolavevargas.proyecto.navigation.AppNavigation
+import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
+import dagger.hilt.android.AndroidEntryPoint
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import com.camposocampoolavevargas.proyecto.data.repository.SyncCoordinator
+import javax.inject.Inject
 
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var syncCoordinator: SyncCoordinator
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            ProyectoTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "DormiBienU",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+        
+        // Start monitoring connection and triggering background sync
+        syncCoordinator.start()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
             }
         }
-    }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+        val navigateTo = intent.getStringExtra("navigate_to")
+        val startRoute = if (navigateTo == "disconnect_reminder") {
+            com.camposocampoolavevargas.proyecto.navigation.Screen.DisconnectReminder.route
+        } else {
+            null
+        }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    ProyectoTheme {
-        Greeting("Android")
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+
+        setContent {
+            DormiBienUTheme {
+                val windowSizeClass = calculateWindowSizeClass(this)
+                AppNavigation(
+                    startDestination = startRoute,
+                    windowSizeClass = windowSizeClass
+                )
+            }
+        }
     }
 }
