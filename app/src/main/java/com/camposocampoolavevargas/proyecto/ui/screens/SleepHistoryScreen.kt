@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
@@ -65,6 +66,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.camposocampoolavevargas.proyecto.data.local.model.SleepQuality
+import com.camposocampoolavevargas.proyecto.navigation.Screen
 import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
 
 // --- Paleta de calidad consistente con el resto de la app ---
@@ -117,26 +119,16 @@ fun HistorialTabContent(
 ) {
     val scrollState = rememberScrollState()
     val registros by viewModel.filteredRecords.collectAsState()
+    val chartData by viewModel.chartData.collectAsState()
+    val weekRangeText by viewModel.weekRangeText.collectAsState()
+    val currentWeekOffset by viewModel.currentWeekOffset.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     var filterExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.reload() }
 
-    val ultimos7 = registros.sortedBy { it.date }.takeLast(7)
-    val barData   = ultimos7.map { it.durationMinutes / 60f }
-    val labels    = ultimos7.map { it.date.takeLast(2) }
-    val calidades = ultimos7.map { it.quality }
-    val promedio  = if (barData.isNotEmpty()) barData.average() else 0.0
-
-    val dateRangeText = if (registros.isNotEmpty()) {
-        val latestRecord   = registros.first()
-        val earliestRecord = registros.last()
-        val formattedStart = formatShortDate(earliestRecord.date)
-        val formattedEnd   = formatShortDate(latestRecord.date)
-        if (formattedStart == formattedEnd) formattedStart else "$formattedStart - $formattedEnd"
-    } else {
-        "Sin registros"
-    }
+    val activeRecords = chartData.filter { it.hours > 0f }
+    val promedio  = if (activeRecords.isNotEmpty()) activeRecords.map { it.hours }.average() else 0.0
 
     Column(
         modifier = Modifier
@@ -159,7 +151,7 @@ fun HistorialTabContent(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        // ── TARJETA: GRÁFICO DE BARRAS (últimos 7 días) ──────
+        // ── TARJETA: GRÁFICO DE BARRAS (por días de la semana con paginación) ──────
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -176,7 +168,7 @@ fun HistorialTabContent(
                 ) {
                     Column {
                         Text(
-                            text = "Últimos 7 días",
+                            text = "Historial Semanal",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -212,10 +204,55 @@ fun HistorialTabContent(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Controles de Paginación de Semana
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { viewModel.selectPreviousWeek() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Semana anterior",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Text(
+                        text = weekRangeText,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    IconButton(
+                        onClick = { viewModel.selectNextWeek() },
+                        enabled = currentWeekOffset < 0,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Semana siguiente",
+                            modifier = Modifier.size(20.dp),
+                            tint = if (currentWeekOffset < 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
 
                 // Gráfico de barras con Canvas
-                if (barData.isNotEmpty()) {
+                if (chartData.isNotEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -226,7 +263,7 @@ fun HistorialTabContent(
                             val w          = size.width
                             val bottomPad  = 24.dp.toPx()
                             val spacing    = 10.dp.toPx()
-                            val barW       = (w - spacing * (barData.size - 1)) / barData.size
+                            val barW       = (w - spacing * (chartData.size - 1)) / chartData.size
                             val maxVal     = 10f
                             val chartH     = h - bottomPad
 
@@ -242,23 +279,24 @@ fun HistorialTabContent(
                                 )
                             )
 
-                            barData.forEachIndexed { i, value ->
-                                val barH    = (value / maxVal) * chartH
-                                val left    = i * (barW + spacing)
-                                val top     = chartH - barH
-                                val calidad = calidades[i]
-                                val barColor = colorParaCalidad(calidad)
+                            chartData.forEachIndexed { i, data ->
+                                if (data.hours > 0f && data.quality != null) {
+                                    val barH    = (data.hours / maxVal) * chartH
+                                    val left    = i * (barW + spacing)
+                                    val top     = chartH - barH
+                                    val barColor = colorParaCalidad(data.quality)
 
-                                drawRoundRect(
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(barColor, barColor.copy(alpha = 0.6f)),
-                                        startY = top,
-                                        endY = chartH
-                                    ),
-                                    topLeft = Offset(left, top),
-                                    size = Size(barW, barH),
-                                    cornerRadius = CornerRadius(6.dp.toPx())
-                                )
+                                    drawRoundRect(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(barColor, barColor.copy(alpha = 0.6f)),
+                                            startY = top,
+                                            endY = chartH
+                                        ),
+                                        topLeft = Offset(left, top),
+                                        size = Size(barW, barH),
+                                        cornerRadius = CornerRadius(6.dp.toPx())
+                                    )
+                                }
                             }
 
                             // Línea base
@@ -270,17 +308,18 @@ fun HistorialTabContent(
                             )
                         }
 
-                        // Etiquetas de días
+                        // Etiquetas de días L M X J V S D
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .align(Alignment.BottomStart),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            labels.forEach { label ->
+                            chartData.forEach { data ->
                                 Text(
-                                    text = label,
-                                    fontSize = 10.sp,
+                                    text = data.day,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.weight(1f),
                                     textAlign = TextAlign.Center
@@ -358,7 +397,10 @@ fun HistorialTabContent(
                         calidad = registro.quality.displayName,
                         colorCalidad = color,
                         emoji = emoji,
-                        cumpleMeta = cumpleMeta
+                        cumpleMeta = cumpleMeta,
+                        onEditClick = {
+                            navController.navigate(Screen.SleepLog.route + "?recordId=${registro.recordId}")
+                        }
                     )
                 }
             }
@@ -385,7 +427,8 @@ fun SleepHistoryItemCard(
     calidad: String,
     colorCalidad: Color,
     emoji: String,
-    cumpleMeta: Boolean
+    cumpleMeta: Boolean,
+    onEditClick: () -> Unit
 ) {
     var expandida by remember { mutableStateOf(false) }
     val borderAlpha by animateFloatAsState(
@@ -545,6 +588,22 @@ fun SleepHistoryItemCard(
                         color = if (cumpleMeta) Color(0xFF3FB950) else Color(0xFFE3B341),
                         fontWeight = FontWeight.Medium
                     )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    androidx.compose.material3.Button(
+                        onClick = onEditClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    ) {
+                        Text(
+                            text = "✏️  Editar Registro",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
                 }
             }
         }

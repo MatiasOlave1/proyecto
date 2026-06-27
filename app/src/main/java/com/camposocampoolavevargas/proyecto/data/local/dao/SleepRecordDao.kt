@@ -38,6 +38,9 @@ interface SleepRecordDao {
     @Query("SELECT * FROM sleep_records WHERE userId = :userId AND date = :date LIMIT 1")
     suspend fun getRecordByDateDirect(userId: String, date: String): SleepRecordEntity?
 
+    @Query("SELECT * FROM sleep_records WHERE recordId = :recordId LIMIT 1")
+    suspend fun getRecordById(recordId: String): SleepRecordEntity?
+
     @Query("SELECT * FROM sleep_records WHERE userId = :userId AND syncStatus = 'PENDING'")
     suspend fun getPendingSyncRecords(userId: String): List<SleepRecordEntity>
 

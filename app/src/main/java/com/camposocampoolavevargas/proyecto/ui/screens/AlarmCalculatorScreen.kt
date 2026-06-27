@@ -1,52 +1,70 @@
 package com.camposocampoolavevargas.proyecto.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import java.util.Calendar
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlarmCalculatorScreen(
     navController: NavController,
     viewModel: AlarmCalculatorViewModel = hiltViewModel()
 ) {
+    val bedtimeHour by viewModel.bedtimeHour.collectAsState()
+    val bedtimeMinute by viewModel.bedtimeMinute.collectAsState()
+    val selectedCycles by viewModel.selectedCycles.collectAsState()
     val wakeHour by viewModel.wakeHour.collectAsState()
     val wakeMinute by viewModel.wakeMinute.collectAsState()
-    val sleepWindows by viewModel.sleepWindows.collectAsState()
     val alarmSet by viewModel.alarmSet.collectAsState()
     val selectedDays by viewModel.selectedDays.collectAsState()
-    val selectedWindow by viewModel.selectedWindow.collectAsState()
 
     var showTimePicker by remember { mutableStateOf(false) }
-    val timePickerState = rememberTimePickerState(
-        initialHour = wakeHour,
-        initialMinute = wakeMinute
-    )
+
+    val context = LocalContext.current
+
+    val bedtimeAmPm = if (bedtimeHour < 12) "AM" else "PM"
+    val bedtimeHour12 = when {
+        bedtimeHour == 0 -> 12
+        bedtimeHour > 12 -> bedtimeHour - 12
+        else -> bedtimeHour
+    }
+    val bedtimeFormatted = String.format("%d:%02d %s", bedtimeHour12, bedtimeMinute, bedtimeAmPm)
+
+    val wakeAmPm = if (wakeHour < 12) "AM" else "PM"
+    val wakeHour12 = when {
+        wakeHour == 0 -> 12
+        wakeHour > 12 -> wakeHour - 12
+        else -> wakeHour
+    }
+    val wakeFormatted = String.format("%d:%02d %s", wakeHour12, wakeMinute, wakeAmPm)
+
+
 
     Scaffold(
-        topBar= {
+        topBar = {
             TopAppBar(
-                title = {
-                    Text("Calculadora de Sueño")
-                },
+                title = { Text("Calculadora de Sueño") },
                 navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            navController.popBackStack()
-                        }
-                    ) {
+                    IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver"
@@ -63,243 +81,336 @@ fun AlarmCalculatorScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // --- HORA DE DESPERTAR ---
+            // --- ESTADO DE LA ALARMA ACTIVA ---
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "¿A qué hora quieres despertar?",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = String.format("%02d:%02d", wakeHour, wakeMinute),
-                            style = MaterialTheme.typography.displaySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = { showTimePicker = true }) {
-                            Text("Cambiar hora")
-                        }
-                    }
-                }
-            }
-
-            // --- DÍAS DE RECURRENCIA ---
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Repetir",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        val days = listOf(
-                            Calendar.MONDAY to "L",
-                            Calendar.TUESDAY to "M",
-                            Calendar.WEDNESDAY to "Mi",
-                            Calendar.THURSDAY to "J",
-                            Calendar.FRIDAY to "V",
-                            Calendar.SATURDAY to "S",
-                            Calendar.SUNDAY to "D"
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            days.forEach { (day, label) ->
-                                FilterChip(
-                                    selected = selectedDays.contains(day),
-                                    onClick = { viewModel.toggleDay(day) },
-                                    label = { Text(label) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // --- VENTANAS DE SUEÑO ---
-            item {
-                Text(
-                    text = "Horarios recomendados para acostarte",
-
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            item {
-                selectedWindow?.let { window ->
+                if (alarmSet) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
                         )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                text = "Horario seleccionado",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Text(
-                                text = window.bedtime,
-                                style = MaterialTheme.typography.headlineMedium
-                            )
-
-                            Text(
-                                text = "${window.cyclesCount} ciclos de sueño"
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (sleepWindows.isEmpty()) {
-                item {
-                    Text(
-                        text = "Selecciona una hora de despertar para ver las ventanas de sueño.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                items(sleepWindows) { window ->
-
-                    val isSelected = selectedWindow == window
-
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp),
-                        onClick = {
-                            viewModel.selectWindow(window)
-                        },
-                        colors = CardDefaults.cardColors(
-                            containerColor =
-                                if (isSelected)
-                                    MaterialTheme.colorScheme.primaryContainer
-                                else
-                                    MaterialTheme.colorScheme.surface
-                        ),
-                        border = if (isSelected)
-                            androidx.compose.foundation.BorderStroke(
-                                2.dp,
-                                MaterialTheme.colorScheme.primary
-                            )
-                        else null
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
                                 Text(
-                                    text = window.bedtime,
-                                    style = MaterialTheme.typography.headlineSmall,
+                                    text = "⏰ Alarma Activa",
                                     fontWeight = FontWeight.Bold,
-                                    color =
-                                        if (isSelected)
-                                            MaterialTheme.colorScheme.onPrimaryContainer
-                                        else
-                                            MaterialTheme.colorScheme.onSurface
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
-
                                 Text(
-                                    text = "${window.cyclesCount} ciclos · ${window.cyclesCount * 90} min",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color =
-                                        if (isSelected)
-                                            MaterialTheme.colorScheme.onPrimaryContainer
-                                        else
-                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = "Sonará a las $wakeFormatted",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                                 )
                             }
-                            Text(
-                                text = if (window.cyclesCount >= 5) "⭐ Ideal" else "✓ OK",
-                                style = MaterialTheme.typography.labelMedium
-                            )
+                            Button(
+                                onClick = { 
+                                    viewModel.cancelAlarm()
+                                    android.widget.Toast.makeText(context, "Alarma cancelada", android.widget.Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error
+                                )
+                            ) {
+                                Text("Apagar", color = Color.White)
+                            }
                         }
                     }
                 }
+            }
 
-
-                // --- BOTONES ---
-                item {
-
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-
-                        Button(
-                            onClick = {
-                                viewModel.setAlarm()
-                            },
+            // --- 1. CARD: PLANIFICAR HORA DE ACOSTARSE ---
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "¿A qué hora vas a acostarte?",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = selectedWindow != null
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                text = "Guardar y Activar Alarma",
-                                fontWeight = FontWeight.Bold
-                            )
+                             Text(
+                                 text = bedtimeFormatted,
+                                 style = MaterialTheme.typography.displaySmall,
+                                 color = MaterialTheme.colorScheme.primary,
+                                 fontWeight = FontWeight.Bold
+                             )
+                            Button(
+                                onClick = { viewModel.setBedtimeToNow() },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            ) {
+                                Text("Dormir ahora 😴")
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = { showTimePicker = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Cambiar hora de acostarse")
+                        }
+                    }
+                }
+            }
+
+            // --- 2. CARD: SELECCIÓN DE CICLOS ---
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "¿Cuántos ciclos quieres dormir?",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val cycleOptions = listOf(3, 4, 5, 6, 7)
+                            cycleOptions.forEach { cycles ->
+                                val isSelected = selectedCycles == cycles
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.surfaceVariant
+                                        )
+                                        .clickable { viewModel.updateCycles(cycles) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = cycles.toString(),
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                }
+                            }
                         }
 
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        val durationHours = selectedCycles * 1.5
+                        val cyclesDescription = when (selectedCycles) {
+                            3 -> "4.5 horas (Ideal para siestas reconstituyentes)"
+                            4 -> "6.0 horas (Sueño mínimo recomendado)"
+                            5 -> "7.5 horas (¡Recomendado para la mayoría!)"
+                            6 -> "9.0 horas (Excelente para recuperación deportiva)"
+                            7 -> "10.5 horas (Recuperación profunda tras desvelo)"
+                            else -> ""
+                        }
+
+                        Text(
+                            text = "Duración: $durationHours horas de sueño",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = cyclesDescription,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // --- 3. CARD: HORA DE DESPERTAR CALCULADA ---
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "⏰ Hora de despertar recomendada:",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                         Text(
+                             text = wakeFormatted,
+                             style = MaterialTheme.typography.displayMedium,
+                             fontWeight = FontWeight.Black,
+                             color = MaterialTheme.colorScheme.onSecondaryContainer
+                         )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "(Incluye 14 minutos para conciliar el sueño al principio del ciclo)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+
+            // --- 4. CARD: DÍAS DE RECURRENCIA ---
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Días de repetición",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        
+                        val days = listOf(
+                            Calendar.MONDAY to "L",
+                            Calendar.TUESDAY to "M",
+                            Calendar.WEDNESDAY to "X",
+                            Calendar.THURSDAY to "J",
+                            Calendar.FRIDAY to "V",
+                            Calendar.SATURDAY to "S",
+                            Calendar.SUNDAY to "D"
+                        )
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            days.forEach { (day, label) ->
+                                val isSelected = selectedDays.contains(day)
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.surfaceVariant
+                                        )
+                                        .clickable { viewModel.toggleDay(day) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- 5. ACCIONES Y BOTONES ---
+            item {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(vertical = 8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            viewModel.setAlarm()
+                            android.widget.Toast.makeText(context, "¡Alarma inteligente guardada y activada!", android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "Guardar y Activar Alarma Inteligente",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+
+                    if (alarmSet) {
                         OutlinedButton(
                             onClick = {
                                 viewModel.cancelAlarm()
+                                android.widget.Toast.makeText(context, "Alarma inteligente desactivada", android.widget.Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = alarmSet
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
                                 text = "Cancelar Alarma",
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
                             )
                         }
+                    }
+
+                    Button(
+                        onClick = { viewModel.simulateAlarm() },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "⚡ Simular Despertar (Probar Flujo)",
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
         }
-                // --- TIME PICKER DIALOG ---
-                if (showTimePicker) {
-                    AlertDialog(
-                        onDismissRequest = { showTimePicker = false },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    viewModel.updateWakeTime(
-                                        timePickerState.hour,
-                                        timePickerState.minute
-                                    )
-                                    showTimePicker = false
-                                }
-                            ) {
-                                Text("Confirmar")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(
-                                onClick = {
-                                    showTimePicker = false
-                                }
-                            ) {
-                                Text("Cancelar")
-                            }
-                        },
-                        text = {
-                            TimePicker(state = timePickerState)
+
+        // --- TIME PICKER DIALOG ---
+        if (showTimePicker) {
+            val state = rememberTimePickerState(
+                initialHour = bedtimeHour,
+                initialMinute = bedtimeMinute
+            )
+            AlertDialog(
+                onDismissRequest = { showTimePicker = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.updateBedtime(
+                                state.hour,
+                                state.minute
+                            )
+                            showTimePicker = false
                         }
-                    )
+                    ) {
+                        Text("Confirmar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showTimePicker = false }) {
+                        Text("Cancelar")
+                    }
+                },
+                text = {
+                    TimePicker(state = state)
                 }
-            }
+            )
         }
+    }
+}

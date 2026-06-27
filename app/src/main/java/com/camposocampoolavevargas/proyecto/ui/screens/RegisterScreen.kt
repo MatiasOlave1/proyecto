@@ -59,9 +59,7 @@ import androidx.navigation.compose.rememberNavController
 import com.camposocampoolavevargas.proyecto.navigation.Screen
 import com.camposocampoolavevargas.proyecto.ui.BaseViewModel.UiState
 import com.camposocampoolavevargas.proyecto.ui.theme.DormiBienUTheme
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
+
 
 /**
  * Screen for Registration (RF01 — Registro simplificado con soporte de Google).
@@ -81,32 +79,7 @@ fun RegisterScreen(
     
     var localError by remember { mutableStateOf<String?>(null) }
 
-    // Google Sign-In setup
-    val gso = remember {
-        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestEmail()
-            .requestProfile()
-            .build()
-    }
-    val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
 
-    val googleLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        try {
-            val account = task.getResult(ApiException::class.java)
-            val googleEmail = account?.email
-            val googleName = account?.displayName ?: "Usuario Google"
-            if (googleEmail != null) {
-                viewModel.registerOrLoginWithGoogle(googleEmail, googleName)
-            } else {
-                localError = "No se pudo obtener el correo de Google."
-            }
-        } catch (e: ApiException) {
-            localError = "Error de Google (${e.statusCode}): Verifica el archivo google-services.json."
-        }
-    }
 
     // Redirect to Home when registration is successful
     LaunchedEffect(registerState) {
@@ -235,50 +208,6 @@ fun RegisterScreen(
                             Text(text = "Registrarse", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Divider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
-                            Text(
-                                text = "O",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-                            Divider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        OutlinedButton(
-                            onClick = {
-                                googleSignInClient.signOut().addOnCompleteListener {
-                                    val signInIntent = googleSignInClient.signInIntent
-                                    googleLauncher.launch(signInIntent)
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    text = "G",
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 18.sp,
-                                    color = Color(0xFF4285F4)
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(text = "Registrarse con Google", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))

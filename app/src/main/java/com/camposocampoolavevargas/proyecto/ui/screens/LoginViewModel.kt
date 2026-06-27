@@ -61,24 +61,20 @@ class LoginViewModel @Inject constructor(
                     return@launch
                 }
 
-                // If API call failed, check if it's a network issue to attempt local database fallback
                 val exception = apiResult.exceptionOrNull()
-                val isNetworkError = exception is java.io.IOException || exception?.cause is java.io.IOException
-                
-                if (isNetworkError) {
-                    val identifier = emailOrPhone.trim().lowercase()
-                    val user = userDao.getUserByEmailOrPhone(identifier)
-                    if (user != null) {
-                        val inputHash = HashUtils.hashPassword(password)
-                        if (user.passwordHash == inputHash) {
-                            // Save credentials temporarily in memory for background sync
-                            UserManager.correoRegistrado = user.email
-                            UserManager.passwordRegistrada = password
+                // If API call failed, attempt local database fallback for offline-registered users
+                val identifier = emailOrPhone.trim().lowercase()
+                val user = userDao.getUserByEmailOrPhone(identifier)
+                if (user != null) {
+                    val inputHash = HashUtils.hashPassword(password)
+                    if (user.passwordHash == inputHash) {
+                        // Save credentials temporarily in memory for background sync
+                        UserManager.correoRegistrado = user.email
+                        UserManager.passwordRegistrada = password
 
-                            userSession.login(user.userId)
-                            _loginState.value = UiState.Success(user.userId)
-                            return@launch
-                        }
+                        userSession.login(user.userId)
+                        _loginState.value = UiState.Success(user.userId)
+                        return@launch
                     }
                 }
 
@@ -87,35 +83,6 @@ class LoginViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 _loginState.value = UiState.Error(e.localizedMessage ?: "Ocurrió un error inesperado al iniciar sesión.")
-            }
-        }
-    }
-
-    /**
-     * Logs in or creates a user account when authenticating through Google on the login screen.
-     */
-    fun loginWithGoogle(email: String, name: String) {
-        viewModelScope.launch {
-            _loginState.value = UiState.Loading
-            try {
-                val cleanEmail = email.trim().lowercase()
-                var user = userDao.getUserByEmail(cleanEmail)
-                
-                if (user == null) {
-                    val userId = UUID.randomUUID().toString()
-                    user = UserEntity(
-                        userId = userId,
-                        email = cleanEmail,
-                        passwordHash = "GOOGLE_AUTH_ACCOUNT",
-                        name = name.trim()
-                    )
-                    userDao.insertUser(user)
-                }
-                
-                userSession.login(user.userId)
-                _loginState.value = UiState.Success(user.userId)
-            } catch (e: Exception) {
-                _loginState.value = UiState.Error(e.localizedMessage ?: "Ocurrió un error al iniciar sesión con Google.")
             }
         }
     }

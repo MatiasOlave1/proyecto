@@ -78,11 +78,15 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-    //Responsive
+    // Responsive
     // WindowSizeClass para responsive
     implementation("androidx.compose.material3:material3-window-size-class:1.3.2")
     // WorkManager + Hilt WorkManager (SPEC-07 — AutoEliminarWorker)
     implementation(libs.work.runtime.ktx)
     implementation(libs.hilt.work)
     ksp(libs.hilt.compiler)
+
+    // Spotify App Remote SDK
+    implementation(files("libs/spotify-app-remote-release-0.8.0.aar"))
+    implementation("com.google.code.gson:gson:2.11.0")
 }

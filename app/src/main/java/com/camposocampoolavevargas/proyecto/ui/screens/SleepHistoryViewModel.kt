@@ -16,6 +16,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
+import kotlinx.coroutines.flow.map
+
 enum class HistoryFilter(val displayName: String) {
     LAST_7_DAYS("Últimos 7 días"),
     LAST_30_DAYS("Últimos 30 días"),
@@ -24,7 +26,9 @@ enum class HistoryFilter(val displayName: String) {
 
 data class SleepBarData(
     val day: String,
-    val hours: Float
+    val hours: Float,
+    val quality: com.camposocampoolavevargas.proyecto.data.local.model.SleepQuality?,
+    val date: String
 )
 
 @HiltViewModel
@@ -39,6 +43,9 @@ class SleepHistoryViewModel @Inject constructor(
 
     private val _selectedFilter = MutableStateFlow(HistoryFilter.LAST_7_DAYS)
     val selectedFilter: StateFlow<HistoryFilter> = _selectedFilter
+
+    private val _currentWeekOffset = MutableStateFlow(0)
+    val currentWeekOffset: StateFlow<Int> = _currentWeekOffset
 
     val filteredRecords: StateFlow<List<SleepRecordEntity>> = combine(
         _records,
@@ -75,9 +82,48 @@ class SleepHistoryViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    private val _chartData =
-        MutableStateFlow<List<SleepBarData>>(emptyList())
-    val chartData: StateFlow<List<SleepBarData>> = _chartData
+    val chartData: StateFlow<List<SleepBarData>> = combine(
+        _records,
+        _currentWeekOffset
+    ) { recordsList, offset ->
+        val today = LocalDate.now()
+        val monday = today.plusWeeks(offset.toLong()).with(java.time.DayOfWeek.MONDAY)
+        val initials = listOf("L", "M", "X", "J", "V", "S", "D")
+        
+        (0..6).map { i ->
+            val date = monday.plusDays(i.toLong())
+            val dateStr = date.toString()
+            val record = recordsList.find { it.date == dateStr }
+            SleepBarData(
+                day = initials[i],
+                hours = record?.let { it.durationMinutes / 60f } ?: 0f,
+                quality = record?.quality,
+                date = dateStr
+            )
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val weekRangeText: StateFlow<String> = _currentWeekOffset.map { offset ->
+        val today = LocalDate.now()
+        val monday = today.plusWeeks(offset.toLong()).with(java.time.DayOfWeek.MONDAY)
+        val sunday = monday.plusDays(6)
+        val formatter = DateTimeFormatter.ofPattern("d 'de' MMM", java.util.Locale("es", "ES"))
+        val formatterWithYear = DateTimeFormatter.ofPattern("d 'de' MMM yyyy", java.util.Locale("es", "ES"))
+        
+        if (monday.year == sunday.year) {
+            "${monday.format(formatter)} - ${sunday.format(formatterWithYear)}".uppercase()
+        } else {
+            "${monday.format(formatterWithYear)} - ${sunday.format(formatterWithYear)}".uppercase()
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = ""
+    )
 
     init {
         loadRecords()
@@ -86,6 +132,16 @@ class SleepHistoryViewModel @Inject constructor(
     /** Fuerza recarga de registros — invocable desde LaunchedEffect en la UI. */
     fun reload() {
         loadRecords()
+    }
+
+    fun selectPreviousWeek() {
+        _currentWeekOffset.value -= 1
+    }
+
+    fun selectNextWeek() {
+        if (_currentWeekOffset.value < 0) {
+            _currentWeekOffset.value += 1
+        }
     }
 
     private fun loadRecords() {
@@ -98,18 +154,6 @@ class SleepHistoryViewModel @Inject constructor(
                 .sortedByDescending { it.date }
 
             _records.value = registros
-
-            _chartData.value =
-                registros
-                    .take(7)
-                    .reversed()
-                    .map {
-                        val fecha = LocalDate.parse(it.date)
-                        SleepBarData(
-                            day = fecha.format(DateTimeFormatter.ofPattern("dd")),
-                            hours = it.durationMinutes / 60f
-                        )
-                    }
         }
     }
 }

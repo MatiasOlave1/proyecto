@@ -111,6 +111,26 @@ fun SleepLogScreen(
 
 
 
+    var isDatePickerShowing by remember { mutableStateOf(false) }
+
+    val onPickDate = {
+        if (!isDatePickerShowing) {
+            isDatePickerShowing = true
+            android.app.DatePickerDialog(
+                context,
+                { _, year, month, dayOfMonth ->
+                    viewModel.updateDate(LocalDate.of(year, month + 1, dayOfMonth))
+                },
+                selectedDate.year,
+                selectedDate.monthValue - 1,
+                selectedDate.dayOfMonth
+            ).apply {
+                setOnDismissListener { isDatePickerShowing = false }
+                show()
+            }
+        }
+    }
+
     val onPickSleepTime = {
         if (!isSleepTimePickerShowing) {
             isSleepTimePickerShowing = true
@@ -156,7 +176,7 @@ fun SleepLogScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Registrar Descanso",
+                            text = if (viewModel.isEditMode) "Editar Descanso" else "Registrar Descanso",
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -192,7 +212,7 @@ fun SleepLogScreen(
                 ) {
                     // Header Subtitle (Matching goals style hierarchy)
                     Text(
-                        text = "Registro de Sueño Diario",
+                        text = if (viewModel.isEditMode) "Editar Registro de Sueño" else "Registro de Sueño Diario",
                         style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold),
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(top = 8.dp, bottom = 20.dp),
@@ -226,11 +246,12 @@ fun SleepLogScreen(
                                         .fillMaxWidth()
                                         .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
                                         .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RoundedCornerShape(8.dp))
+                                        .clickable { onPickDate() }
                                         .padding(horizontal = 16.dp, vertical = 14.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Fecha de registro (Ayer)",
+                                        text = if (viewModel.isEditMode) "Fecha de registro" else "Fecha de registro (Clic para cambiar)",
                                         modifier = Modifier.weight(1f),
                                         fontSize = 14.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -431,10 +452,31 @@ fun SleepLogScreen(
                         )
                     ) {
                         Text(
-                            text = "Guardar Registro",
+                            text = if (viewModel.isEditMode) "Guardar Cambios" else "Guardar Registro",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
+                    }
+
+                    if (!viewModel.isEditMode) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = { viewModel.generateTestData() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.secondary
+                            ),
+                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary)
+                        ) {
+                            Text(
+                                text = "🧪 Generar 14 Días de Datos de Prueba",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(32.dp))

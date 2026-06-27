@@ -130,35 +130,4 @@ class RegisterViewModel @Inject constructor(
             }
         }
     }
-
-    /**
-     * Handles Google login/register success.
-     * Persists the Google account details locally if they don't already exist.
-     */
-    fun registerOrLoginWithGoogle(email: String, name: String) {
-        viewModelScope.launch {
-            _registerState.value = UiState.Loading
-            try {
-                val cleanEmail = email.trim().lowercase()
-                var user = userDao.getUserByEmail(cleanEmail)
-                
-                if (user == null) {
-                    // Create new local representation for Google user
-                    val userId = UUID.randomUUID().toString()
-                    user = UserEntity(
-                        userId = userId,
-                        email = cleanEmail,
-                        passwordHash = "GOOGLE_AUTH_ACCOUNT", // Special tag for non-password users
-                        name = name.trim()
-                    )
-                    userDao.insertUser(user)
-                }
-                
-                userSession.login(user.userId)
-                _registerState.value = UiState.Success(user.userId)
-            } catch (e: Exception) {
-                _registerState.value = UiState.Error(e.localizedMessage ?: "Ocurrió un error al iniciar sesión con Google.")
-            }
-        }
-    }
 }

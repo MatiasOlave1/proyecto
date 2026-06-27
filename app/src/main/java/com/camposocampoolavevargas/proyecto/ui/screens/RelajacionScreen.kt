@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -36,6 +37,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -80,6 +82,11 @@ fun RelajacionScreen(
     val uiState by viewModel.uiState.collectAsState()
     val event by viewModel.eventEmitter.collectAsState()
 
+    // Interceptar retroceso físico para interrumpir la sesión activa
+    BackHandler(enabled = uiState.isSessionActive) {
+        viewModel.interrumpirSesion()
+    }
+
     LaunchedEffect(modoNocturno) {
         if (modoNocturno) viewModel.activarModoNoche()
         else viewModel.desactivarModoNoche()
@@ -119,7 +126,7 @@ fun RelajacionScreen(
                 onPausarReanudar = { viewModel.pausarReanudar() },
                 onIncrementarTiempo = { viewModel.incrementarTiempo() },
                 onIncrementarCiclo = { viewModel.incrementarCiclo() },
-                onBackClick = onBackClick
+                onBackClick = { viewModel.interrumpirSesion() }
             )
         }
     }
@@ -534,28 +541,12 @@ private fun RelajacionActivoScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Button(
-                        onClick = onPausarReanudar,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = AcentoNaranja,
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Text(
-                            text = if (uiState.isAnimationRunning) "⏸  Pausar" else "▶  Reanudar",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-
-                    Button(
                         onClick = onCompletarSesion,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = VerdeExito,
-                            contentColor = Color.White
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
                         Text(
@@ -565,20 +556,44 @@ private fun RelajacionActivoScreen(
                         )
                     }
 
-                    Button(
-                        onClick = onInterrumpirSesion,
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = Color.White
-                        )
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
-                            text = "✕  Interrumpir",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
+                        Button(
+                            onClick = onPausarReanudar,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        ) {
+                            Text(
+                                text = if (uiState.isAnimationRunning) "⏸  Pausar" else "▶  Reanudar",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = onInterrumpirSesion,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                            )
+                        ) {
+                            Text(
+                                text = "✕  Interrumpir",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
                     }
                 }
             }
